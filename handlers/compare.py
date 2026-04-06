@@ -5,10 +5,10 @@ from __future__ import annotations
 import html
 import time
 
-from aiogram import Router
+from aiogram import F, Router
 from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandObject
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 
 import database as dbmod
 from config import level_tier_emoji
@@ -22,7 +22,7 @@ from faceit_api import (
 )
 from formatting import flag_emoji
 from keyboards.inline import with_navigation
-from ui_text import bold, code, section
+from ui_text import bold, code, italic, section
 
 router = Router(name="compare")
 
@@ -183,3 +183,16 @@ async def cmd_compare(message: Message, command: CommandObject, db, faceit) -> N
         parse_mode=ParseMode.HTML,
         reply_markup=with_navigation(),
     )
+
+
+@router.callback_query(F.data == "nav:compare")
+async def cb_nav_compare(callback: CallbackQuery) -> None:
+    if callback.message:
+        await callback.message.answer(
+            f"{bold('Compare')}\n"
+            f"Send {code('/compare faceit_nickname')} to compare your stats with another player.\n"
+            f"{italic('You must be registered with /register first.')}",
+            parse_mode=ParseMode.HTML,
+            reply_markup=with_navigation(),
+        )
+    await callback.answer()

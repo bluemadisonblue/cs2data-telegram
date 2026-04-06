@@ -7,8 +7,9 @@ from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
+from config import BOT_VERSION
 from keyboards.inline import main_menu_kb
-from ui_text import bold, bullet_line, code, italic, section, sep
+from ui_text import bold, bullet_line, code, italic, link, section, sep
 
 router = Router(name="start")
 
@@ -24,6 +25,9 @@ HELP_HTML = "\n".join(
         bullet_line(f"{code('/match id')} — scoreboard"),
         bullet_line(f"{code('/rank')} / {code('/elo')} — ELO progress"),
         bullet_line(f"{code('/compare nickname')} — side-by-side table"),
+        bullet_line(f"{code('/maps')} or {code('/maps 50')} — recent map mix"),
+        bullet_line(f"{code('/unlink')} — remove your FACEIT link from this bot"),
+        bullet_line(f"{code('/about')} — version & data source"),
         bullet_line(f"{code('/help')} — this list"),
         "",
         sep(20),
@@ -38,7 +42,7 @@ WELCOME_HTML = "\n".join(
         bold("Track ELO, matches, and compare with friends — without leaving Telegram."),
         "",
         f"1️⃣ {code('/register your_faceit_nickname')}",
-        f"2️⃣ Open {bold('Stats')}, {bold('Matches')}, or {bold('Rank')} from the keyboard",
+        f"2️⃣ Use {bold('Stats')}, {bold('Matches')}, {bold('Rank')}, {bold('Maps')}, or {bold('Compare')} below",
         "",
         italic("Commands still work anytime."),
     ]
@@ -50,6 +54,32 @@ async def cmd_start(message: Message) -> None:
     await message.answer(
         WELCOME_HTML,
         parse_mode=ParseMode.HTML,
+        reply_markup=main_menu_kb(),
+    )
+
+
+ABOUT_HTML = "\n".join(
+    [
+        section("ℹ️", "About"),
+        "",
+        f"Version {code(BOT_VERSION)}",
+        "",
+        "Stats and matches come from the "
+        f"{link('https://docs.faceit.com/', 'FACEIT Data API')} "
+        "(CS2). This bot is not affiliated with FACEIT.",
+        "",
+        sep(20),
+        italic("Tip: after /matches, tap the numbered row button for that game’s scoreboard."),
+    ]
+)
+
+
+@router.message(Command("about"))
+async def cmd_about(message: Message) -> None:
+    await message.answer(
+        ABOUT_HTML,
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True,
         reply_markup=main_menu_kb(),
     )
 

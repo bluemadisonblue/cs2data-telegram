@@ -18,6 +18,10 @@ def main_menu_kb() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="🏆 Rank", callback_data="nav:rank"),
     )
     b.row(
+        InlineKeyboardButton(text="🗺 Maps", callback_data="nav:maps"),
+        InlineKeyboardButton(text="⚔️ Compare", callback_data="nav:compare"),
+    )
+    b.row(
         InlineKeyboardButton(text="🔗 Register", callback_data="menu:register"),
         InlineKeyboardButton(text="❓ Help", callback_data="menu:help"),
     )
@@ -30,6 +34,17 @@ def with_navigation(url_markup: InlineKeyboardMarkup | None = None) -> InlineKey
     b = InlineKeyboardBuilder()
     if url_markup and url_markup.inline_keyboard:
         for row in url_markup.inline_keyboard:
+            b.row(*row)
+    for row in main_menu_kb().inline_keyboard:
+        b.row(*row)
+    return b.as_markup()
+
+
+def with_match_boards_and_nav(boards: InlineKeyboardMarkup | None) -> InlineKeyboardMarkup:
+    """Match scoreboard shortcuts + main menu (matches list)."""
+    b = InlineKeyboardBuilder()
+    if boards and boards.inline_keyboard:
+        for row in boards.inline_keyboard:
             b.row(*row)
     for row in main_menu_kb().inline_keyboard:
         b.row(*row)
@@ -58,4 +73,30 @@ def register_confirm_kb() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="✅ Yes, update", callback_data="reg:confirm"),
         InlineKeyboardButton(text="❌ Cancel", callback_data="reg:cancel"),
     )
+    return b.as_markup()
+
+
+def unlink_confirm_kb() -> InlineKeyboardMarkup:
+    b = InlineKeyboardBuilder()
+    b.row(
+        InlineKeyboardButton(text="✅ Unlink", callback_data="unlink:confirm"),
+        InlineKeyboardButton(text="❌ Keep", callback_data="unlink:cancel"),
+    )
+    return b.as_markup()
+
+
+def match_boards_kb(entries: list[tuple[str, str]]) -> InlineKeyboardMarkup | None:
+    """
+    One full-width button per match (same order as the list above).
+    callback_data m:{match_id} (must stay ≤64 bytes). Button text ≤64 chars.
+    """
+    rows = [(mid, lab) for mid, lab in entries if mid and len(f"m:{mid}") <= 64]
+    if not rows:
+        return None
+    b = InlineKeyboardBuilder()
+    for mid, lab in rows:
+        text = lab.strip() if lab else "·"
+        if len(text) > 64:
+            text = text[:63] + "…"
+        b.row(InlineKeyboardButton(text=text, callback_data=f"m:{mid}"))
     return b.as_markup()

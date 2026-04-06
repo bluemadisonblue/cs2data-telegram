@@ -33,6 +33,19 @@ async def get_user(db: aiosqlite.Connection, telegram_id: int) -> dict[str, Any]
     return dict(row) if row else None
 
 
+async def delete_user(db: aiosqlite.Connection, telegram_id: int) -> bool:
+    async with db.execute(
+        "SELECT 1 FROM users WHERE telegram_id = ? LIMIT 1",
+        (telegram_id,),
+    ) as cur:
+        exists = await cur.fetchone() is not None
+    if not exists:
+        return False
+    await db.execute("DELETE FROM users WHERE telegram_id = ?", (telegram_id,))
+    await db.commit()
+    return True
+
+
 async def upsert_user(
     db: aiosqlite.Connection,
     telegram_id: int,

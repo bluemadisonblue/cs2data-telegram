@@ -16,7 +16,7 @@ from faceit_api import (
     FaceitRateLimitError,
     FaceitUnavailableError,
 )
-from keyboards.inline import register_confirm_kb, with_navigation
+from keyboards.inline import register_confirm_kb, unlink_confirm_kb, with_navigation
 from ui_text import bold, code
 
 router = Router(name="register")
@@ -164,3 +164,54 @@ async def cb_reg_confirm(
             reply_markup=with_navigation(),
         )
     await callback.answer("Saved")
+
+
+@router.message(Command("unlink"))
+async def cmd_unlink(message: Message, db) -> None:
+    tid = message.from_user.id
+    u = await dbmod.get_user(db, tid)
+    if not u:
+        await message.answer(
+            f"{bold('Nothing to unlink')}\n"
+            f"You do not have a linked FACEIT account.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=with_navigation(),
+        )
+        return
+    await message.answer(
+        f"{bold('Unlink FACEIT?')}\n"
+        f"Current: {code(u['faceit_nickname'])}\n\n"
+        f"{bold('This only removes the link in this bot — your FACEIT account is unchanged.')}",
+        parse_mode=ParseMode.HTML,
+        reply_markup=unlink_confirm_kb(),
+    )
+
+
+@router.callback_query(F.data == "unlink:cancel")
+async def cb_unlink_cancel(callback: CallbackQuery) -> None:
+    if callback.message:
+        await callback.message.answer(
+            bold("Unlink cancelled."),
+            parse_mode=ParseMode.HTML,
+            reply_markup=with_navigation(),
+        )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "unlink:confirm")
+async def cb_unlink_confirm(callback: CallbackQuery, db) -> None:
+    ok = await dbmod.delete_user(db, callback.from_user.id)
+    if callback.message:
+        if ok:
+            await callback.message.answer(
+                bold("Unlinked.") + "\nUse /register to connect again.",
+                parse_mode=ParseMode.HTML,
+                reply_markup=with_navigation(),
+            )
+        else:
+            await callback.message.answer(
+                bold("No link was stored."),
+                parse_mode=ParseMode.HTML,
+                reply_markup=with_navigation(),
+            )
+    await callback.answer("Done" if ok else "OK")

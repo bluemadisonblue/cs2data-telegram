@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
+BOT_VERSION: str = "1.1.0"
+
 BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
 FACEIT_API_KEY: str = os.getenv("FACEIT_API_KEY", "")
 FACEIT_BASE_URL: str = "https://open.faceit.com/data/v4"
