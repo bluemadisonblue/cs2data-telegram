@@ -272,18 +272,29 @@ async def answer_stats_dashboard(
         )
         return
 
-    await loading.delete()
-
     text = format_stats_dashboard_html(
         bundle,
         bot_username=message.bot.username if message.bot else None,
     )
     url_kb = player_links_kb(bundle["faceit_url"])
-    await message.answer(
-        text,
-        parse_mode=ParseMode.HTML,
-        reply_markup=ctx_stats_kb(url_kb),
-    )
+    try:
+        await message.answer(
+            text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=ctx_stats_kb(url_kb),
+        )
+    except Exception as exc:
+        logger.exception("stats dashboard send failed: %s", exc)
+        await message.answer(
+            bold("Could not send stats (Telegram rejected the message). Try again."),
+            parse_mode=ParseMode.HTML,
+            reply_markup=with_navigation(),
+        )
+    finally:
+        try:
+            await loading.delete()
+        except Exception:
+            pass
 
     if own_account and bundle["elo"]:
         try:

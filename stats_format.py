@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from config import BOT_USERNAME, RECENT_FORM_LIMIT, level_tier_emoji
@@ -112,10 +113,14 @@ async def fetch_stats_bundle(
     }
 
 
+# Telegram usernames: [a-zA-Z0-9_], 4–32 chars for bots.
+_WATERMARK_USER_RE = re.compile(r"^[a-zA-Z0-9_]{4,32}$")
+
+
 def _stats_share_watermark_html(bot_username: str) -> str:
     """Footer for screenshots: subtle CTA + t.me link to the bot."""
     u = (bot_username or "").strip().lstrip("@")
-    if not u:
+    if not u or not _WATERMARK_USER_RE.match(u):
         return ""
     return italic("Clip & share — ") + link(f"https://t.me/{u}", f"@{u}")
 
@@ -151,7 +156,7 @@ def format_stats_dashboard_html(
     if form_raw == "—" or n_show == 0:
         lines.append(italic("No recent matches in this API batch."))
     else:
-        lines.append(f"<code>{form_raw}</code>")
+        lines.append(code(str(form_raw)))
 
     streak = bundle.get("streak")
     if streak is not None:
