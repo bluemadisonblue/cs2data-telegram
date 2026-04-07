@@ -466,6 +466,10 @@ async def cb_match_board(callback: CallbackQuery, db, faceit) -> None:
         await callback.answer(msg[:180], show_alert=True)
         return
     await callback.answer()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await send_match_scoreboard(callback.message, db, faceit, mid, callback.from_user.id)
 
 
@@ -485,6 +489,10 @@ async def cb_matches_page(callback: CallbackQuery, db, faceit) -> None:
         await callback.answer(msg[:180], show_alert=True)
         return
     await callback.answer()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await answer_matches_list(
         callback.message, db, faceit, limit=limit, page=page,
         actor_telegram_id=callback.from_user.id,
@@ -505,6 +513,10 @@ async def cb_nav_stats(callback: CallbackQuery, db, faceit) -> None:
         await callback.answer(msg[:180], show_alert=True)
         return
     await callback.answer()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await answer_stats_dashboard(callback.message, db, faceit, actor_telegram_id=callback.from_user.id)
 
 
@@ -517,6 +529,10 @@ async def cb_nav_matches(callback: CallbackQuery, db, faceit) -> None:
         await callback.answer(msg[:180], show_alert=True)
         return
     await callback.answer()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await answer_matches_list(
         callback.message, db, faceit, limit=10, page=1,
         actor_telegram_id=callback.from_user.id,

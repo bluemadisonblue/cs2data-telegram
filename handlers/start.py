@@ -154,14 +154,14 @@ async def cmd_version(message: Message) -> None:
 @router.callback_query(F.data == "menu:help")
 async def cb_menu_help(callback: CallbackQuery) -> None:
     if callback.message:
-        await callback.message.answer(HELP_HTML, parse_mode=ParseMode.HTML, reply_markup=main_menu_kb())
+        await callback.message.edit_text(HELP_HTML, parse_mode=ParseMode.HTML, reply_markup=main_menu_kb())
     await callback.answer()
 
 
 @router.callback_query(F.data == "menu:register")
 async def cb_menu_register(callback: CallbackQuery) -> None:
     if callback.message:
-        await callback.message.answer(
+        await callback.message.edit_text(
             f"{bold('Register')}\nSend {code('/register your_faceit_nickname')} in this chat.",
             parse_mode=ParseMode.HTML,
             reply_markup=main_menu_kb(),
@@ -172,5 +172,5 @@ async def cb_menu_register(callback: CallbackQuery) -> None:
 @router.callback_query(F.data == "nav:home")
 async def cb_nav_home(callback: CallbackQuery) -> None:
     if callback.message:
-        await callback.message.answer(WELCOME_HTML, parse_mode=ParseMode.HTML, reply_markup=main_menu_kb())
+        await callback.message.edit_text(WELCOME_HTML, parse_mode=ParseMode.HTML, reply_markup=main_menu_kb())
     await callback.answer()

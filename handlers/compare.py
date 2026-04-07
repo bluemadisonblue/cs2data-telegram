@@ -288,7 +288,7 @@ async def cmd_compare(message: Message, command: CommandObject, db, faceit) -> N
 @router.callback_query(F.data == "nav:compare")
 async def cb_nav_compare(callback: CallbackQuery) -> None:
     if callback.message:
-        await callback.message.answer(
+        await callback.message.edit_text(
             f"{bold('Compare / party')}\n"
             f"{code('/compare nick')} — you vs one player (registered).\n"
             f"{code('/party nick1 nick2 …')} — multi-player table (no registration).\n"

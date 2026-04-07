@@ -163,6 +163,10 @@ async def cb_nav_profile(callback: CallbackQuery, db, faceit) -> None:
         await callback.answer(msg[:180], show_alert=True)
         return
     await callback.answer()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await answer_profile_card(
         callback.message,
         db,

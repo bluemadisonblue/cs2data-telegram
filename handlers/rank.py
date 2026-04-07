@@ -149,4 +149,8 @@ async def cb_nav_rank(callback: CallbackQuery, db, faceit) -> None:
         await callback.answer(msg[:180], show_alert=True)
         return
     await callback.answer()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await answer_rank_card(callback.message, db, faceit, actor_telegram_id=callback.from_user.id)
