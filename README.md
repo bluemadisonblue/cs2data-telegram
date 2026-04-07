@@ -55,7 +55,9 @@ docker compose logs -f
 - Set **secrets** in the dashboard: `BOT_TOKEN`, `FACEIT_API_KEY`. Optional: `PYTHONUNBUFFERED=1`.
 - **SQLite on App Platform** is on an **ephemeral** filesystem: data is lost on redeploy. For durable registrations and history, use **Docker Compose on a Droplet** (above) or an external database (would require code changes).
 
-**Build note:** Pin Python with **`.python-version`** (`3.12`). If you use the Heroku buildpack, **`Procfile`** must contain only valid `process: command` lines (no comment lines with `:` — they break parsing). **`runtime.txt`** is deprecated; this repo relies on `.python-version`.
+**Build (Python buildpack):** **`.python-version`** (`3.12`) tells the buildpack the major line; DigitalOcean’s mirror may not yet host the *newest* patch (e.g. 3.12.13), which causes a **404** on install. This repo also includes **`runtime.txt`** (`python-3.12.8`) so the buildpack requests a patch that is available on the DO CDN. If a future deploy fails with “Unable to download/install Python”, bump `runtime.txt` to a patch listed in the [buildpack docs](https://do.co/apps-buildpack-python) or switch the component to build from the **`Dockerfile`** (official `python:3.12-slim` image, no DO Python tarball).
+
+**Procfile:** only `process: command` lines — no comment lines containing `:` (the parser treats the first `:` as the separator).
 
 ## Development
 
