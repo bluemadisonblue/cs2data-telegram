@@ -31,4 +31,5 @@ async def register_bot_commands(bot: Bot) -> None:
         BotCommand(command="watch", description="New-match notifications"),
     ]
     await bot.set_my_commands(commands)
-    logger.info("Bot command menu registered (%d entries).", len(commands))
+    names = ", ".join(c.command for c in commands)
+    logger.info("set_my_commands OK (%d): %s", len(commands), names)

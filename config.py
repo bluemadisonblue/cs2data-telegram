@@ -68,7 +68,7 @@ def _compute_db_path() -> str:
     )
 
 
-BOT_VERSION: str = "1.4.0"
+BOT_VERSION: str = "1.4.1"
 
 BOT_TOKEN: str = (os.getenv("BOT_TOKEN") or "").strip()
 FACEIT_API_KEY: str = (os.getenv("FACEIT_API_KEY") or "").strip()

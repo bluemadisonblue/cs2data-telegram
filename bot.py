@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from typing import Any, Awaitable, Callable
 
 import aiohttp
@@ -18,6 +19,7 @@ import database
 from cache import TTLCache
 from config import (
     BOT_TOKEN,
+    BOT_VERSION,
     DB_PATH,
     FACEIT_API_KEY,
     MAX_CACHE_SIZE,
@@ -140,6 +142,15 @@ async def main() -> None:
         )
 
     await database.init_db()
+
+    _git = os.environ.get("GIT_SHA") or os.environ.get("SOURCE_VERSION") or "local"
+    logger.info(
+        "CS2DATA starting — version=%s build=%s db=%s watch_interval=%ss",
+        BOT_VERSION,
+        _git,
+        DB_PATH,
+        WATCH_POLL_INTERVAL,
+    )
 
     # FSM in SQLite so /register confirmation survives restarts (see fsm_storage.py).
     storage = SQLiteFSMStorage(DB_PATH)

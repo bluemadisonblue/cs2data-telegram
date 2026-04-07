@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from datetime import datetime
 
@@ -16,6 +17,8 @@ from keyboards.inline import with_navigation
 from ui_text import bold, code, esc, italic, section, sep
 
 router = Router(name="watch_trend")
+
+logger = logging.getLogger(__name__)
 
 _last_trend: dict[int, float] = {}
 
@@ -59,98 +62,114 @@ def _sparkline(elos: list[int]) -> str:
 
 @router.message(Command("watch"))
 async def cmd_watch(message: Message, db) -> None:
-    tid = message.from_user.id
-    u = await dbmod.get_user(db, tid)
-    if not u:
+    try:
+        tid = message.from_user.id
+        u = await dbmod.get_user(db, tid)
+        if not u:
+            await message.answer(
+                f"{bold('Account not linked')}\n"
+                f"Use {code('/register your_faceit_nickname')} first.",
+                parse_mode=ParseMode.HTML,
+                reply_markup=with_navigation(),
+            )
+            return
+
+        cur = bool(int(u.get("watching") or 0))
+        new = not cur
+        await dbmod.set_watching(db, tid, new)
+
+        nick = esc(u.get("faceit_nickname") or "?")
+        mins = max(1, WATCH_POLL_INTERVAL // 60)
+        if new:
+            text = (
+                f"{bold('Match alerts ON')}\n"
+                f"{nick}\n\n"
+                f"I’ll check for new CS2 matches about every {code(str(mins) + ' min')} "
+                f"and message you after each game.\n"
+                f"{italic('First check only sets a baseline — no ping for that match.')}"
+            )
+        else:
+            text = (
+                f"{bold('Match alerts OFF')}\n"
+                f"{nick}\n\n"
+                f"{italic('Turn on again anytime with')} {code('/watch')}{italic('.')}"
+            )
+
+        await message.answer(text, parse_mode=ParseMode.HTML, reply_markup=with_navigation())
+    except Exception as exc:
+        logger.exception("cmd_watch failed: %s", exc)
         await message.answer(
-            f"{bold('Account not linked')}\n"
-            f"Use {code('/register your_faceit_nickname')} first.",
+            bold("Could not update watch settings.") + "\nTry again in a moment.",
             parse_mode=ParseMode.HTML,
             reply_markup=with_navigation(),
         )
-        return
-
-    cur = bool(int(u.get("watching") or 0))
-    new = not cur
-    await dbmod.set_watching(db, tid, new)
-
-    nick = esc(u.get("faceit_nickname") or "?")
-    mins = max(1, WATCH_POLL_INTERVAL // 60)
-    if new:
-        text = (
-            f"{bold('Match alerts ON')}\n"
-            f"{nick}\n\n"
-            f"I’ll check for new CS2 matches about every {code(str(mins) + ' min')} "
-            f"and message you after each game.\n"
-            f"{italic('First check only sets a baseline — no ping for that match.')}"
-        )
-    else:
-        text = (
-            f"{bold('Match alerts OFF')}\n"
-            f"{nick}\n\n"
-            f"{italic('Turn on again anytime with')} {code('/watch')}{italic('.')}"
-        )
-
-    await message.answer(text, parse_mode=ParseMode.HTML, reply_markup=with_navigation())
 
 
 @router.message(Command("trend"))
 async def cmd_trend(message: Message, db) -> None:
-    if msg := await _trend_cooldown(message.from_user.id):
-        await message.answer(msg, parse_mode=ParseMode.HTML, reply_markup=with_navigation())
-        return
+    try:
+        if msg := await _trend_cooldown(message.from_user.id):
+            await message.answer(msg, parse_mode=ParseMode.HTML, reply_markup=with_navigation())
+            return
 
-    tid = message.from_user.id
-    u = await dbmod.get_user(db, tid)
-    if not u:
+        tid = message.from_user.id
+        u = await dbmod.get_user(db, tid)
+        if not u:
+            await message.answer(
+                f"{bold('Account not linked')}\n"
+                f"Use {code('/register your_faceit_nickname')} first.",
+                parse_mode=ParseMode.HTML,
+                reply_markup=with_navigation(),
+            )
+            return
+
+        snaps = await dbmod.get_elo_snapshots(db, tid, limit=20)
+        if not snaps:
+            await message.answer(
+                "\n".join(
+                    [
+                        section("📈", "ELO trend"),
+                        "",
+                        bold("No history stored yet."),
+                        "",
+                        f"{italic('Snapshots are saved when ELO changes after')} {code('/rank')} {italic('or')} {code('/stats')}{italic('.')}",
+                        f"{italic('Use those commands over a few days, then try again.')}",
+                    ]
+                ),
+                parse_mode=ParseMode.HTML,
+                reply_markup=with_navigation(),
+            )
+            return
+
+        elos = [int(s["elo"]) for s in snaps]
+        spark = _sparkline(elos)
+        lines: list[str] = [
+            section("📈", "ELO trend"),
+            f"{bold('Player')} {esc(u.get('faceit_nickname') or '')}",
+            sep(24),
+        ]
+        if spark:
+            lines.append(f"{bold('Sparkline')} {code(spark)}")
+            lines.append(
+                f"{italic('Low')} {code(str(min(elos)))} · {italic('High')} {code(str(max(elos)))}"
+            )
+            lines.append("")
+
+        lines.append(bold("Recent points (oldest → newest)"))
+        for s in snaps[-12:]:
+            ra = s.get("recorded_at") or ""
+            lines.append(
+                f"{code(_fmt_time(str(ra)))}  ·  ELO {code(str(s['elo']))}  ·  L{code(str(s['level']))}"
+            )
+
+        if len(snaps) > 12:
+            lines.append(italic(f"… +{len(snaps) - 12} older snapshot(s) in DB"))
+
+        await message.answer("\n".join(lines), parse_mode=ParseMode.HTML, reply_markup=with_navigation())
+    except Exception as exc:
+        logger.exception("cmd_trend failed: %s", exc)
         await message.answer(
-            f"{bold('Account not linked')}\n"
-            f"Use {code('/register your_faceit_nickname')} first.",
+            bold("Could not load ELO trend.") + "\nTry again in a moment.",
             parse_mode=ParseMode.HTML,
             reply_markup=with_navigation(),
         )
-        return
-
-    snaps = await dbmod.get_elo_snapshots(db, tid, limit=20)
-    if not snaps:
-        await message.answer(
-            "\n".join(
-                [
-                    section("📈", "ELO trend"),
-                    "",
-                    bold("No history stored yet."),
-                    "",
-                    f"{italic('Snapshots are saved when ELO changes after')} {code('/rank')} {italic('or')} {code('/stats')}{italic('.')}",
-                    f"{italic('Use those commands over a few days, then try again.')}",
-                ]
-            ),
-            parse_mode=ParseMode.HTML,
-            reply_markup=with_navigation(),
-        )
-        return
-
-    elos = [int(s["elo"]) for s in snaps]
-    spark = _sparkline(elos)
-    lines: list[str] = [
-        section("📈", "ELO trend"),
-        f"{bold('Player')} {esc(u.get('faceit_nickname') or '')}",
-        sep(24),
-    ]
-    if spark:
-        lines.append(f"{bold('Sparkline')} {code(spark)}")
-        lines.append(
-            f"{italic('Low')} {code(str(min(elos)))} · {italic('High')} {code(str(max(elos)))}"
-        )
-        lines.append("")
-
-    lines.append(bold("Recent points (oldest → newest)"))
-    for s in snaps[-12:]:
-        ra = s.get("recorded_at") or ""
-        lines.append(
-            f"{code(_fmt_time(str(ra)))}  ·  ELO {code(str(s['elo']))}  ·  L{code(str(s['level']))}"
-        )
-
-    if len(snaps) > 12:
-        lines.append(italic(f"… +{len(snaps) - 12} older snapshot(s) in DB"))
-
-    await message.answer("\n".join(lines), parse_mode=ParseMode.HTML, reply_markup=with_navigation())
