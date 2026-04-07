@@ -9,7 +9,7 @@ from aiogram.types import CallbackQuery, Message
 
 from config import BOT_VERSION, COOLDOWN_SEC, MATCHES_PAGE_SIZE, PARTY_MAX_PLAYERS
 from keyboards.inline import main_menu_kb
-from ui_text import bold, bullet_line, code, italic, link, section, sep
+from ui_text import bold, bullet_line, code, esc, italic, link, section, sep, tip_item
 
 router = Router(name="start")
 
@@ -41,19 +41,38 @@ HELP_HTML = "\n".join(
         "",
         sep(20),
         italic("Tips:"),
-        italic("• Buttons under messages repeat the same actions as commands."),
-        italic(
-            f"• /matches lists up to 20 games; {code(str(MATCHES_PAGE_SIZE))} per page — "
-            f"use ◀ / ▶. Row numbers match the scoreboard buttons."
+        tip_item(esc("Buttons under messages repeat the same actions as commands.")),
+        tip_item(
+            esc("/matches lists up to 20 games; "),
+            code(str(MATCHES_PAGE_SIZE)),
+            esc(" per page — use ◀ / ▶. Row numbers match the scoreboard buttons."),
         ),
-        italic(
-            "• /stats shows lifetime best win streak in Totals and your current W/L streak "
-            "under Recent form when the API returns enough games."
+        tip_item(
+            esc(
+                "/stats shows lifetime best win streak in Totals and your current W/L streak "
+                "under Recent form when the API returns enough games."
+            )
         ),
-        italic(f"• /compare marks the better value per stat with {code('<')} after the winner; ties have no marker."),
-        italic(
-            f"• {code('/profile')}, {code('/rank')}, {code('/stats')}, {code('/matches')}, "
-            f"{code('/maps')}, and {code('/compare')} share a {code(str(int(COOLDOWN_SEC)) + 's')} cooldown."
+        tip_item(
+            esc("/compare marks the better value per stat with "),
+            code("<"),
+            esc(" after the winner; ties have no marker."),
+        ),
+        tip_item(
+            code("/profile"),
+            esc(", "),
+            code("/rank"),
+            esc(", "),
+            code("/stats"),
+            esc(", "),
+            code("/matches"),
+            esc(", "),
+            code("/maps"),
+            esc(", and "),
+            code("/compare"),
+            esc(" share a "),
+            code(f"{int(COOLDOWN_SEC)}s"),
+            esc(" cooldown."),
         ),
     ]
 )

@@ -39,5 +39,14 @@ def bullet_line(text: str) -> str:
     return f"• {text}"
 
 
+def tip_item(*html_parts: str) -> str:
+    """
+    Italic bullet for help/hint lines that mix plain text with <code> etc.
+    Each part must already be safe Telegram HTML (use esc() for plain text, code() for commands).
+    Do not pass raw user input without esc().
+    """
+    return "<i>• " + "".join(html_parts) + "</i>"
+
+
 def spacer() -> str:
     return ""

@@ -5,7 +5,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from ui_text import bold, bullet_line, code, esc, italic, link, section, sep, spacer
+from ui_text import bold, bullet_line, code, esc, italic, link, section, sep, spacer, tip_item
 
 
 class TestEsc:
@@ -120,3 +120,15 @@ class TestBulletLine:
 class TestSpacer:
     def test_returns_empty_string(self):
         assert spacer() == ""
+
+
+class TestTipItem:
+    def test_plain_only(self):
+        assert tip_item(esc("hello")) == "<i>• hello</i>"
+
+    def test_mixed_code(self):
+        s = tip_item(esc("run "), code("/help"), esc(" now"))
+        assert s.startswith("<i>• ")
+        assert s.endswith("</i>")
+        assert "<code>/help</code>" in s
+        assert "run " in s
