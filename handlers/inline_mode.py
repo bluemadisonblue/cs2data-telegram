@@ -419,7 +419,10 @@ async def _inline_faceit_stats_impl(inline_query: InlineQuery, faceit) -> None:
         )
         return
 
-    dashboard_html = format_stats_dashboard_html(bundle)
+    dashboard_html = format_stats_dashboard_html(
+        bundle,
+        bot_username=inline_query.bot.username if inline_query.bot else None,
+    )
     if len(dashboard_html) > 4000:
         dashboard_html = dashboard_html[:3990] + "\n<i>…truncated</i>"
 

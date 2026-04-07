@@ -274,7 +274,10 @@ async def answer_stats_dashboard(
 
     await loading.delete()
 
-    text = format_stats_dashboard_html(bundle)
+    text = format_stats_dashboard_html(
+        bundle,
+        bot_username=message.bot.username if message.bot else None,
+    )
     url_kb = player_links_kb(bundle["faceit_url"])
     await message.answer(
         text,

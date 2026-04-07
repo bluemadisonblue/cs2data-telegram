@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from config import RECENT_FORM_LIMIT, level_tier_emoji
+from config import BOT_USERNAME, RECENT_FORM_LIMIT, level_tier_emoji
 from faceit_api import (
     FaceitAPI,
     FaceitAPIError,
@@ -14,7 +14,7 @@ from faceit_api import (
     parse_lifetime_stats,
 )
 from formatting import flag_emoji, recent_form_badge
-from ui_text import bold, code, esc, italic, section
+from ui_text import bold, code, esc, italic, link, section
 
 
 async def fetch_stats_bundle(
@@ -112,7 +112,19 @@ async def fetch_stats_bundle(
     }
 
 
-def format_stats_dashboard_html(bundle: dict[str, Any]) -> str:
+def _stats_share_watermark_html(bot_username: str) -> str:
+    """Footer for screenshots: subtle CTA + t.me link to the bot."""
+    u = (bot_username or "").strip().lstrip("@")
+    if not u:
+        return ""
+    return italic("Clip & share — ") + link(f"https://t.me/{u}", f"@{u}")
+
+
+def format_stats_dashboard_html(
+    bundle: dict[str, Any],
+    *,
+    bot_username: str | None = None,
+) -> str:
     """HTML body for the /stats dashboard — compact, no decorative separators."""
     nick_disp = esc(bundle["nickname"])
     lines: list[str] = [
@@ -151,5 +163,11 @@ def format_stats_dashboard_html(bundle: dict[str, Any]) -> str:
             phrase = f"{n} loss in a row" if n == 1 else f"{n} losses in a row"
             mark = "🔴"
         lines.append(f"{bold('Streak')} {mark} {code(phrase)}")
+
+    u = (bot_username or BOT_USERNAME or "").strip().lstrip("@")
+    wm = _stats_share_watermark_html(u)
+    if wm:
+        lines.append("")
+        lines.append(wm)
 
     return "\n".join(lines)
