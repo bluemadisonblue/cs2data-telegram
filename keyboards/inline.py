@@ -25,6 +25,11 @@ _BTN_COMPARE  = InlineKeyboardButton(text="⚔️ Compare", callback_data="nav:c
 _BTN_REGISTER = InlineKeyboardButton(text="🔗 Register",callback_data="menu:register")
 _BTN_HELP     = InlineKeyboardButton(text="❓ Help",    callback_data="menu:help")
 _BTN_HOME     = InlineKeyboardButton(text="🏠 Home",    callback_data="nav:home")
+# Opens the composer with @bot + inline query in this chat (DM-friendly).
+_BTN_INLINE   = InlineKeyboardButton(
+    text="🔎 Inline @bot…",
+    switch_inline_query_current_chat=" ",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -38,6 +43,7 @@ def main_menu_kb() -> InlineKeyboardMarkup:
     b.row(_BTN_MATCHES, _BTN_RANK)
     b.row(_BTN_MAPS, _BTN_COMPARE)
     b.row(_BTN_REGISTER, _BTN_HELP)
+    b.row(_BTN_INLINE)
     b.row(_BTN_HOME)
     return b.as_markup()
 
@@ -52,6 +58,7 @@ def register_success_kb() -> InlineKeyboardMarkup:
     b.row(_BTN_MATCHES, _BTN_RANK)
     b.row(_BTN_MAPS, _BTN_COMPARE)
     b.row(_BTN_REGISTER, _BTN_HELP)
+    b.row(_BTN_INLINE)
     b.row(_BTN_HOME)
     return b.as_markup()
 

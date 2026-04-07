@@ -32,7 +32,9 @@ HELP_HTML = "\n".join(
         bullet_line(f"{code('/party nick1 nick2 …')} — table for up to {PARTY_MAX_PLAYERS} players"),
         bullet_line(f"{code('/leaderboard')} — registered users sorted by live ELO"),
         bullet_line(
-            f"Inline: {code('@botname nickname')} in any chat — same dashboard as {code('/stats nickname')} (no registration)."
+            f"Inline: {code('@botname nickname')} (one player), or compare with "
+            f"{code('@botname unaidy v baler1on')} / {code('@botname unaidy|baler1on')} / "
+            f"{code('@botname unaidy vs baler1on')}."
         ),
         bullet_line(f"{code('/maps')} or {code('/maps 50')} — recent map frequency"),
         bullet_line(f"{code('/trend')} — ELO history over time"),
@@ -89,7 +91,10 @@ WELCOME_HTML = "\n".join(
         f"1️⃣ {code('/register your_faceit_nickname')}",
         f"2️⃣ Use {bold('Stats')}, {bold('Matches')}, {bold('Rank')}, {bold('Maps')}, or {bold('Compare')} below",
         "",
-        italic("Commands still work anytime. Look up anyone with /stats nickname or inline @bot + nickname."),
+        italic(
+            "Commands still work anytime. Look up anyone with /stats nickname, or inline "
+            "@bot + nickname / nick1|nick2 (tap 🔎 Inline @bot… below)."
+        ),
     ]
 )
 

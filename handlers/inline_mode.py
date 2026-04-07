@@ -31,10 +31,10 @@ router = Router(name="inline")
 logger = logging.getLogger(__name__)
 
 _HELP_ARTICLE_ID = "inline-stats-help"
-# Split on " vs ", "versus", " v ", or "nick1vs nick2" (no space before vs — common typo).
-# Single-letter " v " only when surrounded by spaces so we do not split inside words.
+# Split on " vs ", "versus", " v ", "nick1vs nick2", or "nick1v nick2" (attached v).
+# Include Cyrillic «в» (same key as Latin v on RU layout).
 _VS_SPLIT_RE = re.compile(
-    r"(?:\s+(?:versus|vs\.?|v)\s+|(?<=\S)(?:versus|vs\.?)\s+)",
+    r"(?:\s+(?:versus|vs\.?|[v\u0432])\s+|(?<=\S)(?:versus|vs\.?|[v\u0432])\s+)",
     re.IGNORECASE,
 )
 
@@ -51,6 +51,9 @@ def _is_vs_separator_token(tok: str) -> bool:
         return False
     t = tok.casefold()
     if t in ("vs", "v", "versus"):
+        return True
+    # Cyrillic ve (often typed instead of Latin v)
+    if t == "в":
         return True
     # Cyrillic small ve + es (looks like "vs" on RU layout)
     return t == "вс"
@@ -85,10 +88,14 @@ def _looks_like_compare_intent(q: str) -> bool:
     cf = q.casefold()
     if " vs " in cf or cf.startswith("vs ") or cf.endswith(" vs"):
         return True
+    if " v " in cf or cf.endswith(" v"):
+        return True
     if " versus " in cf:
         return True
     # Cyrillic «вс» as two letters (common vs misfire)
     if " вс " in q:
+        return True
+    if "|" in q:
         return True
     tokens = q.split()
     if len(tokens) >= 3 and _is_vs_separator_token(tokens[1]):
@@ -101,8 +108,9 @@ def _help_article() -> InlineQueryResultArticle:
         "<b>FACEIT stats in any chat</b>\n\n"
         "Type <code>@YourBotName</code> and a FACEIT nickname, then tap a result to "
         "insert the CS2 dashboard.\n"
-        "Or use <code>@YourBotName nick1 vs nick2</code>, <code>nick1vs nick2</code>, "
-        "or <code>nick1 v nick2</code> for a shareable compare table.\n\n"
+        "Compare: <code>@YourBotName unaidy v baler1on</code> (spaces around "
+        "<code>v</code>), or <code>unaidy|baler1on</code>, or "
+        "<code>nick1 vs nick2</code> / <code>nick1vs nick2</code>.\n\n"
         "<i>Same data as /stats nickname — no registration.</i>"
     )
     return InlineQueryResultArticle(
@@ -147,11 +155,21 @@ def _party_pre_table(bundles: list[dict]) -> str:
     return "<pre>" + html.escape("\n".join(rows)) + "</pre>"
 
 
+def _try_parse_pipe_query(q: str) -> list[str] | None:
+    """nick1|nick2 — no spaces, works on any keyboard layout (recommended for compare)."""
+    if "|" not in q:
+        return None
+    parts = [p.strip() for p in q.split("|") if p.strip()]
+    return parts if len(parts) >= 2 else None
+
+
 def _try_parse_vs_query(q: str) -> list[str] | None:
     q = _normalize_inline_query(q)
     if not q:
         return None
-    parts = [p.strip() for p in _VS_SPLIT_RE.split(q) if p.strip()]
+    parts: list[str] | None = _try_parse_pipe_query(q)
+    if parts is None:
+        parts = [p.strip() for p in _VS_SPLIT_RE.split(q) if p.strip()]
     if len(parts) < 2:
         token_parts = _try_parse_vs_tokens(q)
         if not token_parts:
@@ -184,17 +202,16 @@ def _inline_title(s: str, max_len: int = 64) -> str:
 def _compare_format_help_article() -> InlineQueryResultArticle:
     return InlineQueryResultArticle(
         id="inline-vs-format",
-        title=_inline_title("Compare: nick1 vs nick2"),
-        description="Latin letters, spaces around vs",
+        title=_inline_title("Compare: nick1|nick2 or nick1 vs nick2"),
+        description="Pipe | works on any keyboard",
         input_message_content=InputTextMessageContent(
             message_text=(
                 "<b>Inline compare</b>\n\n"
-                "Use <b>Latin</b> letters for <code>vs</code>, with spaces:\n"
-                "<code>nick1 vs nick2</code>\n\n"
-                "If the keyboard inserted similar-looking letters (Cyrillic "
-                "<code>вс</code> instead of <code>vs</code>), delete and type "
-                "<code>vs</code> again in English layout.\n\n"
-                "<i>Wait until you finish typing both nicknames — results update as you type.</i>"
+                "<b>Examples:</b> <code>@YourBotName unaidy v baler1on</code> · "
+                "<code>unaidy|baler1on</code> · <code>unaidy vs baler1on</code>.\n\n"
+                "If the keyboard inserted Cyrillic <code>вс</code> instead of <code>vs</code>, "
+                "use <code>|</code> or retype <code>vs</code> in English layout.\n\n"
+                "<i>Wait until both nicknames are typed — results update as you type.</i>"
             ),
             parse_mode="HTML",
         ),
