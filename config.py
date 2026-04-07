@@ -112,17 +112,16 @@ LEVEL_ELO_RANGES: list[tuple[int, int, int]] = [
 
 
 def level_tier_emoji(level: int) -> str:
-    if level <= 2:
-        return "🟤"
-    if level <= 4:
+    """Colored circle by FACEIT level (1–10). Level ≤1 / unknown → gray."""
+    if level <= 1:
+        return "⚪"
+    if level <= 3:
+        return "🟢"
+    if level <= 7:
         return "🟡"
-    if level <= 6:
+    if level <= 9:
         return "🟠"
-    if level <= 8:
-        return "🔴"
-    if level == 9:
-        return "🔵"
-    return "🟣"
+    return "🔴"
 
 
 def elo_progress_in_level(elo: int, level: int) -> tuple[float, int, int | None]:

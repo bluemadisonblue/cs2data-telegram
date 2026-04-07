@@ -62,16 +62,50 @@ async def _fetch_bundle(faceit, player_id: str) -> dict:
     mp_s = str(int(mp)) if mp is not None else "N/A"
     wn = parsed.get("wins")
     ls = parsed.get("losses")
+    wrp = parsed.get("win_rate_pct")
+    # Belt-and-suspenders if enrich missed (FACEIT label quirks per account).
+    if (wn is None or ls is None) and mp is not None and wrp is not None:
+        try:
+            mf = float(mp)
+            wrf = float(wrp)
+            if mf > 0:
+                mi = int(round(mf))
+                w_est = int(round(mf * wrf / 100.0))
+                w_est = max(0, min(w_est, mi))
+                if wn is None:
+                    wn = float(w_est)
+                if ls is None:
+                    ls = float(mi - w_est)
+        except (TypeError, ValueError):
+            pass
+    if wn is not None and ls is None and mp is not None:
+        try:
+            ls = max(0.0, float(mp) - float(wn))
+        except (TypeError, ValueError):
+            pass
+    elif ls is not None and wn is None and mp is not None:
+        try:
+            wn = max(0.0, float(mp) - float(ls))
+        except (TypeError, ValueError):
+            pass
     wl_s = "N/A"
     if wn is not None and ls is not None:
         wl_s = f"{int(wn)}/{int(ls)}"
     mvp_s = "N/A"
-    if parsed.get("mvps") is not None:
+    mv = parsed.get("mvps")
+    if mv is not None:
         try:
-            mvp_s = str(int(float(parsed["mvps"])))
+            mvp_s = str(int(float(mv)))
         except (TypeError, ValueError):
             mvp_s = "N/A"
     kr = parsed.get("kr")
+    if kr is None and parsed.get("kills") is not None and parsed.get("rounds"):
+        try:
+            rf = float(parsed["rounds"])
+            if rf > 0:
+                kr = float(parsed["kills"]) / rf
+        except (TypeError, ValueError, ZeroDivisionError):
+            pass
     kr_s = f"{kr:.2f}" if kr is not None else "N/A"
     cc = (p.get("country") or "").upper()
     return {
@@ -84,7 +118,7 @@ async def _fetch_bundle(faceit, player_id: str) -> dict:
         "hs_raw": hs,
         "mp_raw": mp,
         "kr_raw": kr,
-        "mvps_raw": parsed.get("mvps"),
+        "mvps_raw": mv,
         # formatted strings for display
         "kd": kd_s,
         "wr": wr_s,

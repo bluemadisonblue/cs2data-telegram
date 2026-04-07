@@ -31,15 +31,14 @@ _HELP_ARTICLE_ID = "inline-stats-help"
 def _help_article() -> InlineQueryResultArticle:
     text = (
         "<b>FACEIT stats in any chat</b>\n\n"
-        "1. Open <b>@BotFather</b> → your bot → <b>Inline mode</b> → turn <b>On</b>.\n"
-        "2. In any chat, type <code>@YourBotName nickname</code>\n"
-        "3. Choose the result to insert the full CS2 dashboard.\n\n"
-        "<i>No registration required — same data as /stats nickname.</i>"
+        "Type <code>@YourBotName</code> and a FACEIT nickname, then tap a result to "
+        "insert the CS2 dashboard.\n\n"
+        "<i>Same data as /stats nickname — no registration.</i>"
     )
     return InlineQueryResultArticle(
         id=_HELP_ARTICLE_ID,
-        title="How to use inline stats",
-        description="Enable inline mode in @BotFather, then type @bot + nickname",
+        title="Inline stats",
+        description="Type @bot + nickname, pick a result",
         input_message_content=InputTextMessageContent(
             message_text=text,
             parse_mode="HTML",

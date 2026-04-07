@@ -11,46 +11,43 @@ from config import elo_progress_in_level, level_tier_emoji
 
 class TestLevelTierEmoji:
     def test_level_1(self):
-        assert level_tier_emoji(1) == "🟤"
+        assert level_tier_emoji(1) == "⚪"
 
     def test_level_2(self):
-        assert level_tier_emoji(2) == "🟤"
+        assert level_tier_emoji(2) == "🟢"
 
     def test_level_3(self):
-        assert level_tier_emoji(3) == "🟡"
+        assert level_tier_emoji(3) == "🟢"
 
     def test_level_4(self):
         assert level_tier_emoji(4) == "🟡"
 
     def test_level_5(self):
-        assert level_tier_emoji(5) == "🟠"
+        assert level_tier_emoji(5) == "🟡"
 
     def test_level_6(self):
-        assert level_tier_emoji(6) == "🟠"
+        assert level_tier_emoji(6) == "🟡"
 
     def test_level_7(self):
-        assert level_tier_emoji(7) == "🔴"
+        assert level_tier_emoji(7) == "🟡"
 
     def test_level_8(self):
-        assert level_tier_emoji(8) == "🔴"
+        assert level_tier_emoji(8) == "🟠"
 
     def test_level_9(self):
-        assert level_tier_emoji(9) == "🔵"
+        assert level_tier_emoji(9) == "🟠"
 
     def test_level_10(self):
-        assert level_tier_emoji(10) == "🟣"
+        assert level_tier_emoji(10) == "🔴"
 
     def test_level_11_above_max(self):
-        # Any level > 10 should return the top-tier emoji
-        assert level_tier_emoji(11) == "🟣"
+        assert level_tier_emoji(11) == "🔴"
 
     def test_level_0_below_min(self):
-        # Level 0 is ≤ 2, so bronze
-        assert level_tier_emoji(0) == "🟤"
+        assert level_tier_emoji(0) == "⚪"
 
     def test_level_negative(self):
-        # Negative level is still ≤ 2
-        assert level_tier_emoji(-1) == "🟤"
+        assert level_tier_emoji(-1) == "⚪"
 
 
 class TestEloProgressInLevel:

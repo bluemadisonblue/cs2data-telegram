@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import html as html_mod
+import shlex
 import time
 
 from aiogram import Router
@@ -73,13 +74,17 @@ async def cmd_party(message: Message, command: CommandObject, faceit) -> None:
     if not raw:
         await message.answer(
             f"{bold('Usage')}: {code('/party nick1 nick2')} … up to {PARTY_MAX_PLAYERS} players\n"
-            f"{italic('Example:')} {code('/party s1mple zywoo ropz')}",
+            f"{italic('Example:')} {code('/party s1mple zywoo ropz')}\n"
+            f"{italic('Use quotes for spaces:')} {code('/party \"nick one\" nick2')}",
             parse_mode=ParseMode.HTML,
             reply_markup=ctx_compare_kb(),
         )
         return
 
-    nicks = raw.split()
+    try:
+        nicks = shlex.split(raw)
+    except ValueError:
+        nicks = raw.split()
     if len(nicks) < 2:
         await message.answer(
             bold("Need at least two nicknames.") + f"\n{code('/party nick1 nick2')}",

@@ -66,6 +66,66 @@ def _pick_lifetime_value(lifetime: dict[str, Any], *keys: str) -> Any:
     return None
 
 
+def _pick_first_key_substring(lifetime: dict[str, Any], needle: str) -> Any:
+    """When FACEIT uses varying labels (e.g. CS2 segments), match by substring in the key."""
+    n = needle.lower()
+    for k, v in sorted(lifetime.items(), key=lambda kv: str(kv[0])):
+        if v is None or v == "":
+            continue
+        if n in str(k).lower():
+            return v
+    return None
+
+
+def _pick_mvp_like(lifetime: dict[str, Any]) -> Any:
+    for k, v in sorted(lifetime.items(), key=lambda kv: str(kv[0])):
+        if v is None or v == "":
+            continue
+        kl = str(k).lower()
+        if "mvp" in kl:
+            return v
+    return None
+
+
+def _pick_rounds_like(lifetime: dict[str, Any]) -> Any:
+    """Prefer total/played rounds; avoid win-rate / per-round averages."""
+    scored: list[tuple[int, Any, str]] = []
+    for k, v in lifetime.items():
+        if v is None or v == "":
+            continue
+        kl = str(k).lower()
+        if "round" not in kl or "win" in kl:
+            continue
+        if "per" in kl and "round" in kl:
+            continue
+        score = 0
+        if "total" in kl:
+            score += 2
+        if "played" in kl or "rounds" == kl.strip().lower():
+            score += 2
+        if "rounds" in kl:
+            score += 1
+        scored.append((score, v, kl))
+    if not scored:
+        return None
+    scored.sort(key=lambda t: (-t[0], t[2]))
+    return scored[0][1]
+
+
+def _pick_kr_like(lifetime: dict[str, Any]) -> Any:
+    for needle in (
+        "kills per round",
+        "average k/r",
+        "average kr",
+        "k/r ratio",
+        "kpr",
+    ):
+        v = _pick_first_key_substring(lifetime, needle)
+        if v is not None:
+            return v
+    return None
+
+
 def _segment_sort_key(segment: Any) -> tuple[str, str]:
     """Stable ordering so merging segment stats does not depend on API list order."""
     if not isinstance(segment, dict):
@@ -190,6 +250,52 @@ def _enrich_lifetime_stats(p: dict[str, Any]) -> None:
         except (TypeError, ValueError, ZeroDivisionError):
             pass
 
+    # Last pass: W/L still missing but we have matches + win rate (CS2 often omits explicit W/L).
+    _finalize_wl_from_matches_wr(p)
+    # K/R after rounds may have been filled from segments or inferred above.
+    if p.get("kr") is None and p.get("kills") is not None and p.get("rounds"):
+        try:
+            rf = float(p["rounds"])
+            if rf > 0:
+                p["kr"] = float(p["kills"]) / rf
+        except (TypeError, ValueError, ZeroDivisionError):
+            pass
+
+
+def _finalize_wl_from_matches_wr(p: dict[str, Any]) -> None:
+    wr = p.get("win_rate_pct")
+    m = p.get("matches")
+    if wr is None or m is None:
+        return
+    try:
+        mf = float(m)
+        wrf = float(wr)
+    except (TypeError, ValueError):
+        return
+    if mf <= 0:
+        return
+
+    wn = p.get("wins")
+    ls = p.get("losses")
+
+    if wn is None and ls is None:
+        mi = int(round(mf))
+        w = int(round(mf * wrf / 100.0))
+        w = max(0, min(w, mi))
+        p["wins"] = float(w)
+        p["losses"] = float(mi - w)
+        return
+    if ls is None and wn is not None:
+        try:
+            p["losses"] = max(0.0, mf - float(wn))
+        except (TypeError, ValueError):
+            return
+    elif wn is None and ls is not None:
+        try:
+            p["wins"] = max(0.0, mf - float(ls))
+        except (TypeError, ValueError):
+            return
+
 
 def parse_lifetime_stats(lifetime: dict[str, Any]) -> dict[str, Any]:
     """Normalize lifetime stats; FACEIT uses human-readable label keys."""
@@ -218,10 +324,22 @@ def parse_lifetime_stats(lifetime: dict[str, Any]) -> dict[str, Any]:
         "Best Win Streak",
     )
     wins = _pick_lifetime_value(
-        lifetime, "Wins", "Total Wins", "Games Won", "Match Wins"
+        lifetime,
+        "Wins",
+        "Total Wins",
+        "Games Won",
+        "Match Wins",
+        "Game Wins",
+        "Games Win",
     )
     losses = _pick_lifetime_value(
-        lifetime, "Losses", "Total Losses", "Games Lost", "Match Losses"
+        lifetime,
+        "Losses",
+        "Total Losses",
+        "Games Lost",
+        "Match Losses",
+        "Game Losses",
+        "Games Loss",
     )
     kills = _pick_lifetime_value(
         lifetime, "Kills", "Total Kills", "Total kills", "Kill Count"
@@ -238,8 +356,21 @@ def parse_lifetime_stats(lifetime: dict[str, Any]) -> dict[str, Any]:
         "Total Rounds",
         "Rounds Played",
         "Total Rounds Played",
+        "Rounds played",
     )
-    mvps = _pick_lifetime_value(lifetime, "MVPs", "MVP", "Total MVPs")
+    if rounds is None:
+        rounds = _pick_rounds_like(lifetime)
+    mvps = _pick_lifetime_value(
+        lifetime,
+        "MVPs",
+        "MVP",
+        "Total MVPs",
+        "Total MVP",
+        "MVP Stars",
+        "Most Valuable Player",
+    )
+    if mvps is None:
+        mvps = _pick_mvp_like(lifetime)
     avg_kills = _pick_lifetime_value(
         lifetime,
         "Average Kills",
@@ -264,7 +395,12 @@ def parse_lifetime_stats(lifetime: dict[str, Any]) -> dict[str, Any]:
         "Average K/R",
         "KPR",
         "K/R",
+        "Average Kills per Round",
+        "Kills per Round",
+        "Kills Per Round",
     )
+    if kr is None:
+        kr = _pick_kr_like(lifetime)
     headshots = _pick_lifetime_value(lifetime, "Headshots", "Total Headshots")
     result = {
         "matches": _to_float(matches),

@@ -30,7 +30,7 @@ HELP_HTML = "\n".join(
         bullet_line(f"{code('/party nick1 nick2 …')} — table for up to {PARTY_MAX_PLAYERS} players"),
         bullet_line(f"{code('/leaderboard')} — registered users sorted by live ELO"),
         bullet_line(
-            f"Inline: type {code('@YourBot nickname')} in any chat (enable Inline Mode in @BotFather)"
+            f"Inline: {code('@botname nickname')} in any chat — same dashboard as {code('/stats nickname')} (no registration)."
         ),
         bullet_line(f"{code('/maps')} or {code('/maps 50')} — recent map frequency"),
         bullet_line(f"{code('/trend')} — ELO history over time"),

@@ -25,6 +25,7 @@ from config import (
 )
 from faceit_api import FaceitAPI, FaceitAPIError, parse_match_stats_row
 from fsm_storage import SQLiteFSMStorage
+from commands_setup import register_bot_commands
 from handlers import setup_routers
 from middlewares.db_middleware import DbMiddleware
 
@@ -149,6 +150,10 @@ async def main() -> None:
             token=BOT_TOKEN,
             default=DefaultBotProperties(parse_mode=ParseMode.HTML),
         )
+        try:
+            await register_bot_commands(bot)
+        except Exception as exc:
+            logger.warning("Could not register / command menu: %s", exc)
         dp = Dispatcher(storage=storage)
         dp.update.middleware(FaceitInjectMiddleware(faceit))
         dp.update.middleware(DbMiddleware())
