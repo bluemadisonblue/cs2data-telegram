@@ -1,5 +1,6 @@
 """Environment and shared constants (loaded from `.env` via python-dotenv)."""
 
+import logging
 import os
 from pathlib import Path
 
@@ -7,16 +8,48 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
+_LOG = logging.getLogger(__name__)
+_APP_ROOT = Path(__file__).resolve().parent
+
+
+def _compute_db_path() -> str:
+    """
+    Resolve SQLite path. Relative DB_PATH is under the app directory (not process CWD).
+    If the chosen directory cannot be created (e.g. DB_PATH=/data/... on App Platform
+    without a volume), fall back to bot_data.db next to this package.
+    """
+    default = _APP_ROOT / "bot_data.db"
+    raw = (os.getenv("DB_PATH") or "").strip()
+    if not raw:
+        path = default
+    else:
+        p = Path(raw)
+        path = (_APP_ROOT / p) if not p.is_absolute() else p
+        path = path.resolve()
+
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        _LOG.warning(
+            "Could not create database directory for %s (%s). Using %s instead. "
+            "On DigitalOcean App Platform, omit DB_PATH or set it to a relative name "
+            "like bot_data.db (not /data/... unless you mount that path).",
+            path,
+            exc,
+            default,
+        )
+        path = default
+        path.parent.mkdir(parents=True, exist_ok=True)
+    return str(path)
+
+
 BOT_VERSION: str = "1.4.0"
 
-BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
-FACEIT_API_KEY: str = os.getenv("FACEIT_API_KEY", "")
+BOT_TOKEN: str = (os.getenv("BOT_TOKEN") or "").strip()
+FACEIT_API_KEY: str = (os.getenv("FACEIT_API_KEY") or "").strip()
 FACEIT_BASE_URL: str = "https://open.faceit.com/data/v4"
 GAME_ID: str = "cs2"
-DB_PATH: str = os.getenv(
-    "DB_PATH",
-    str(Path(__file__).resolve().parent / "bot_data.db"),
-)
+DB_PATH: str = _compute_db_path()
 
 # Rate limits & UX
 COOLDOWN_SEC: float = 10.0

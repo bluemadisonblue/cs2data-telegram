@@ -1,6 +1,7 @@
-# DigitalOcean App Platform — Worker (long polling). Set secrets in the UI.
+# DigitalOcean App Platform — Worker (long polling).
+# Secrets: scope BOT_TOKEN and FACEIT_API_KEY to RUN_TIME (not build-only) or the process exits at start.
+# Omit DB_PATH here unless you use a relative path; /data/... needs a Docker volume (see docker-compose.yml).
 # doctl: doctl apps create --spec .do/app.yaml
-# SQLite on App Platform is ephemeral (lost on redeploy). Use a Droplet + docker-compose for persistence.
 
 name: cs2-faceit-bot
 region: fra

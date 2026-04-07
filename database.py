@@ -64,6 +64,7 @@ _MIGRATIONS = [
 # ---------------------------------------------------------------------------
 
 async def init_db(db_path: str = DB_PATH) -> None:
+    # Parent dir is ensured at config import; keep mkdir for tests passing a temp path.
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     async with aiosqlite.connect(db_path) as db:
         await db.execute(_SCHEMA_USERS)

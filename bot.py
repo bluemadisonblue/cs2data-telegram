@@ -132,7 +132,11 @@ async def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
     if not BOT_TOKEN or not FACEIT_API_KEY:
-        raise SystemExit("Set BOT_TOKEN and FACEIT_API_KEY in .env")
+        raise SystemExit(
+            "Missing BOT_TOKEN or FACEIT_API_KEY. Set them as runtime environment variables. "
+            "On DigitalOcean App Platform, edit the worker → Environment Variables and ensure "
+            "each secret’s scope includes Run Time (not Build Time only)."
+        )
 
     await database.init_db()
 
