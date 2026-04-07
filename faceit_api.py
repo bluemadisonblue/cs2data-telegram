@@ -58,12 +58,129 @@ def _pick_lifetime_value(lifetime: dict[str, Any], *keys: str) -> Any:
     for k in keys:
         if k in lifetime:
             return lifetime[k]
+    lower = {str(k).strip().lower(): v for k, v in lifetime.items()}
+    for k in keys:
+        kl = k.strip().lower()
+        if kl in lower:
+            return lower[kl]
     return None
+
+
+def lifetime_map_from_stats_response(st: dict[str, Any] | None) -> dict[str, Any]:
+    """
+    Build one label→value map from GET /players/{id}/stats/{game}.
+
+    CS2 responses often put core rows in `lifetime` but extra totals (Kills, Rounds, …)
+    only under `segments[].stats` (dict or list of {label, value}). Merge so parsers see all keys.
+    """
+    if not isinstance(st, dict):
+        return {}
+
+    def merge_missing(src: dict[str, Any]) -> None:
+        for k, v in src.items():
+            if v is None or v == "":
+                continue
+            ks = str(k).strip()
+            cur = merged.get(ks)
+            if cur is None or cur == "":
+                merged[ks] = v
+
+    merged: dict[str, Any] = {}
+    life = st.get("lifetime")
+    if isinstance(life, dict):
+        merge_missing(life)
+
+    segments = st.get("segments")
+    if isinstance(segments, list):
+        for seg in segments:
+            if not isinstance(seg, dict):
+                continue
+            raw = seg.get("stats")
+            if isinstance(raw, dict):
+                merge_missing(raw)
+            elif isinstance(raw, list):
+                for row in raw:
+                    if not isinstance(row, dict):
+                        continue
+                    label = row.get("label") or row.get("name") or row.get("key")
+                    if label is None:
+                        continue
+                    val = row.get("value")
+                    if val is None and "count" in row:
+                        val = row.get("count")
+                    if val is None:
+                        continue
+                    merge_missing({str(label): val})
+
+    return merged
+
+
+def _enrich_lifetime_stats(p: dict[str, Any]) -> None:
+    """Fill missing W/L, totals, and averages when FACEIT omits keys but enough signal exists."""
+    m = p.get("matches")
+    mf = float(m) if m is not None else None
+
+    if mf is not None and mf > 0:
+        if p.get("losses") is None and p.get("wins") is not None:
+            p["losses"] = max(0.0, mf - float(p["wins"]))
+        if p.get("wins") is None and p.get("losses") is not None:
+            p["wins"] = max(0.0, mf - float(p["losses"]))
+
+    wr = p.get("win_rate_pct")
+    if (
+        p.get("wins") is None
+        and p.get("losses") is None
+        and mf is not None
+        and mf > 0
+        and wr is not None
+    ):
+        mi = int(round(mf))
+        w = int(round(mf * float(wr) / 100.0))
+        w = max(0, min(w, mi))
+        p["wins"] = float(w)
+        p["losses"] = float(mi - w)
+
+    if mf is not None and mf > 0:
+        if p.get("kills") is None and p.get("avg_kills") is not None:
+            p["kills"] = float(p["avg_kills"]) * mf
+        if p.get("deaths") is None and p.get("avg_deaths") is not None:
+            p["deaths"] = float(p["avg_deaths"]) * mf
+
+    if p.get("kills") is None and p.get("kd") is not None and p.get("deaths"):
+        df = float(p["deaths"])
+        if df > 0:
+            p["kills"] = float(p["kd"]) * df
+
+    if p.get("deaths") is None and p.get("kd") is not None and p.get("kills"):
+        kdf = float(p["kd"])
+        if kdf > 0:
+            p["deaths"] = float(p["kills"]) / kdf
+
+    if p.get("kr") is None and p.get("kills") is not None and p.get("rounds"):
+        rf = float(p["rounds"])
+        if rf > 0:
+            p["kr"] = float(p["kills"]) / rf
+
+    if mf is not None and mf > 0:
+        if p.get("avg_kills") is None and p.get("kills") is not None:
+            p["avg_kills"] = float(p["kills"]) / mf
+        if p.get("avg_deaths") is None and p.get("deaths") is not None:
+            p["avg_deaths"] = float(p["deaths"]) / mf
+
+    if p.get("rounds") is None and p.get("kr") is not None and p.get("kills"):
+        try:
+            kr = float(p["kr"])
+            if kr > 0:
+                p["rounds"] = float(p["kills"]) / kr
+        except (TypeError, ValueError, ZeroDivisionError):
+            pass
 
 
 def parse_lifetime_stats(lifetime: dict[str, Any]) -> dict[str, Any]:
     """Normalize lifetime stats; FACEIT uses human-readable label keys."""
-    matches = _pick_lifetime_value(lifetime, "Matches", "Total Matches")
+    matches = _pick_lifetime_value(
+        lifetime, "Matches", "Total Matches", "Number of Matches", "Games"
+    )
     win_rate = _pick_lifetime_value(lifetime, "Win Rate %", "Win Rate", "Win Rate % ")
     kd = _pick_lifetime_value(
         lifetime,
@@ -71,34 +188,70 @@ def parse_lifetime_stats(lifetime: dict[str, Any]) -> dict[str, Any]:
         "Average K/D",
         "K/D Ratio",
         "Average KDR",
+        "KDR",
     )
     hs = _pick_lifetime_value(
         lifetime,
         "Average Headshots %",
         "Headshots %",
+        "Average Headshots",
     )
-    streak = _pick_lifetime_value(lifetime, "Longest Win Streak", "Longest Win Streak ")
-    wins = _pick_lifetime_value(lifetime, "Wins", "Total Wins")
-    losses = _pick_lifetime_value(lifetime, "Losses", "Total Losses")
-    kills = _pick_lifetime_value(lifetime, "Kills", "Total Kills")
-    deaths = _pick_lifetime_value(lifetime, "Deaths", "Total Deaths")
-    assists = _pick_lifetime_value(lifetime, "Assists", "Total Assists")
-    rounds = _pick_lifetime_value(lifetime, "Rounds", "Total Rounds")
-    mvps = _pick_lifetime_value(lifetime, "MVPs", "MVP")
+    streak = _pick_lifetime_value(
+        lifetime,
+        "Longest Win Streak",
+        "Longest Win Streak ",
+        "Best Win Streak",
+    )
+    wins = _pick_lifetime_value(
+        lifetime, "Wins", "Total Wins", "Games Won", "Match Wins"
+    )
+    losses = _pick_lifetime_value(
+        lifetime, "Losses", "Total Losses", "Games Lost", "Match Losses"
+    )
+    kills = _pick_lifetime_value(
+        lifetime, "Kills", "Total Kills", "Total kills", "Kill Count"
+    )
+    deaths = _pick_lifetime_value(
+        lifetime, "Deaths", "Total Deaths", "Total deaths"
+    )
+    assists = _pick_lifetime_value(
+        lifetime, "Assists", "Total Assists", "Total assists"
+    )
+    rounds = _pick_lifetime_value(
+        lifetime,
+        "Rounds",
+        "Total Rounds",
+        "Rounds Played",
+        "Total Rounds Played",
+    )
+    mvps = _pick_lifetime_value(lifetime, "MVPs", "MVP", "Total MVPs")
     avg_kills = _pick_lifetime_value(
-        lifetime, "Average Kills", "Avg Kills", "Kills / Match"
+        lifetime,
+        "Average Kills",
+        "Avg Kills",
+        "Kills / Match",
+        "Kills per Match",
+        "Average Kills per Match",
     )
     avg_deaths = _pick_lifetime_value(
-        lifetime, "Average Deaths", "Avg Deaths", "Deaths / Match"
+        lifetime,
+        "Average Deaths",
+        "Avg Deaths",
+        "Deaths / Match",
+        "Deaths per Match",
+        "Average Deaths per Match",
     )
     kr = _pick_lifetime_value(
         lifetime,
         "Average K/R Ratio",
         "K/R Ratio",
         "Average KR",
+        "Average K/R",
+        "KPR",
+        "K/R",
     )
     headshots = _pick_lifetime_value(lifetime, "Headshots", "Total Headshots")
-    return {
+    result = {
         "matches": _to_float(matches),
         "win_rate_pct": _to_float(win_rate),
         "kd": _to_float(kd),
@@ -116,6 +269,8 @@ def parse_lifetime_stats(lifetime: dict[str, Any]) -> dict[str, Any]:
         "kr": _to_float(kr),
         "headshots": _to_float(headshots),
     }
+    _enrich_lifetime_stats(result)
+    return result
 
 
 def _to_float(val: Any) -> float | None:

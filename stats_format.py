@@ -11,6 +11,7 @@ from faceit_api import (
     FaceitAPIError,
     current_win_streak,
     extract_cs2_game,
+    lifetime_map_from_stats_response,
     parse_lifetime_stats,
 )
 from formatting import flag_emoji, recent_form_badge
@@ -49,9 +50,7 @@ async def fetch_stats_bundle(
     country = (p.get("country") or "").upper()
     flg = flag_emoji(country)
 
-    life = (st.get("lifetime") or {}) if isinstance(st, dict) else {}
-    if not isinstance(life, dict):
-        life = {}
+    life = lifetime_map_from_stats_response(st if isinstance(st, dict) else None)
     parsed = parse_lifetime_stats(life)
 
     def _fmt_opt(v: float | None, fmt: str, fallback: str = "—") -> str:

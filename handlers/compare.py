@@ -19,6 +19,7 @@ from faceit_api import (
     FaceitRateLimitError,
     FaceitUnavailableError,
     extract_cs2_game,
+    lifetime_map_from_stats_response,
     parse_lifetime_stats,
 )
 from formatting import flag_emoji
@@ -49,9 +50,7 @@ async def _fetch_bundle(faceit, player_id: str) -> dict:
     g = extract_cs2_game(p) or {}
     elo = int(g.get("faceit_elo") or 0)
     level = int(g.get("skill_level") or 0)
-    life = (st.get("lifetime") or {}) if isinstance(st, dict) else {}
-    if not isinstance(life, dict):
-        life = {}
+    life = lifetime_map_from_stats_response(st if isinstance(st, dict) else None)
     parsed = parse_lifetime_stats(life)
     wr = parsed["win_rate_pct"]
     wr_s = f"{wr:.1f}%" if wr is not None else "N/A"

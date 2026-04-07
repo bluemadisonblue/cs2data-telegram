@@ -16,6 +16,7 @@ from faceit_api import (
     aggregate_match_scoreboard,
     current_win_streak,
     group_rows_by_team,
+    lifetime_map_from_stats_response,
     parse_lifetime_stats,
     parse_match_stats_row,
 )
@@ -175,6 +176,49 @@ class TestParseLifetimeStats:
         result = parse_lifetime_stats({"Matches": 300, "Wins": 150})
         assert result["matches"] == 300.0
         assert result["wins"] == 150.0
+        assert result["losses"] == 150.0  # enriched from matches − wins
+
+    def test_enrich_wins_losses_from_win_rate_only(self):
+        result = parse_lifetime_stats({"Matches": "100", "Win Rate %": "49"})
+        assert result["wins"] == 49.0
+        assert result["losses"] == 51.0
+
+    def test_case_insensitive_keys(self):
+        result = parse_lifetime_stats({"matches": "10", "wins": "6", "losses": "4"})
+        assert result["matches"] == 10.0
+        assert result["wins"] == 6.0
+
+
+class TestLifetimeMapFromStatsResponse:
+    def test_merges_segment_stats_dict(self):
+        st = {
+            "lifetime": {"Matches": "10", "Win Rate %": "50"},
+            "segments": [{"stats": {"Kills": "200", "Deaths": "180", "Rounds": "500"}}],
+        }
+        m = lifetime_map_from_stats_response(st)
+        assert m["Matches"] == "10"
+        assert m["Kills"] == "200"
+        parsed = parse_lifetime_stats(m)
+        assert parsed["kills"] == 200.0
+        assert parsed["deaths"] == 180.0
+        assert parsed["rounds"] == 500.0
+
+    def test_segment_list_label_value(self):
+        st = {
+            "lifetime": {"Matches": "5"},
+            "segments": [
+                {
+                    "stats": [
+                        {"label": "Kills", "value": "50"},
+                        {"label": "Deaths", "value": "40"},
+                    ]
+                }
+            ],
+        }
+        m = lifetime_map_from_stats_response(st)
+        parsed = parse_lifetime_stats(m)
+        assert parsed["kills"] == 50.0
+        assert parsed["deaths"] == 40.0
 
 
 # ---------------------------------------------------------------------------
