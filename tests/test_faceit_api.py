@@ -244,16 +244,22 @@ class TestLifetimeMapFromStatsResponse:
 # ---------------------------------------------------------------------------
 
 class TestFaceitMatchUrl:
-    def test_builds_cs2_path(self):
-        assert faceit_match_url("1-abc-uuid") == "https://www.faceit.com/en/cs2/match/1-abc-uuid"
+    def test_builds_cs2_room_path(self):
+        assert faceit_match_url("1-abc-uuid") == "https://www.faceit.com/en/cs2/room/1-abc-uuid"
 
     def test_empty_id(self):
         assert faceit_match_url("") == ""
         assert faceit_match_url("   ") == ""
 
     def test_resolve_prefers_meta(self):
-        u = "https://www.faceit.com/en/cs2/match/x"
+        u = "https://www.faceit.com/en/cs2/room/x"
         assert resolve_match_faceit_url({"faceit_url": u}, "ignored") == u
+
+    def test_resolve_rewrites_legacy_match_path(self):
+        u = "https://www.faceit.com/en/cs2/match/1-deadbeef"
+        assert resolve_match_faceit_url({"faceit_url": u}, "ignored") == (
+            "https://www.faceit.com/en/cs2/room/1-deadbeef"
+        )
 
     def test_resolve_fallback(self):
         mid = "1-test"

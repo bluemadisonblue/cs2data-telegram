@@ -656,11 +656,26 @@ class FaceitAPI:
 
 
 def faceit_match_url(match_id: str) -> str:
-    """Canonical CS2 match page on the FACEIT website (fallback when API omits a URL)."""
+    """Canonical CS2 matchroom on the FACEIT website (fallback when API omits a URL).
+
+    Public pages use ``/en/cs2/room/{id}``; ``/cs2/match/`` returns 404.
+    """
     mid = (match_id or "").strip()
     if not mid:
         return ""
-    return f"https://www.faceit.com/en/cs2/match/{mid}"
+    return f"https://www.faceit.com/en/cs2/room/{mid}"
+
+
+def _normalize_faceit_cs2_room_url(url: str) -> str:
+    """Rewrite legacy ``/cs2/match/`` links from the API to working ``/cs2/room/`` paths."""
+    u = url.strip()
+    for old, new in (
+        ("/en/cs2/match/", "/en/cs2/room/"),
+        ("/cs2/match/", "/cs2/room/"),
+    ):
+        if old in u:
+            return u.replace(old, new, 1)
+    return u
 
 
 def resolve_match_faceit_url(meta: dict[str, Any] | None, match_id: str) -> str:
@@ -669,7 +684,7 @@ def resolve_match_faceit_url(meta: dict[str, Any] | None, match_id: str) -> str:
         for key in ("faceit_url", "faceitUrl", "url"):
             v = meta.get(key)
             if isinstance(v, str) and v.strip().lower().startswith("http"):
-                return v.strip()
+                return _normalize_faceit_cs2_room_url(v.strip())
     return faceit_match_url(match_id)
 
 
