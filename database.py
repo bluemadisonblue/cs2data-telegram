@@ -64,8 +64,8 @@ _MIGRATIONS = [
 # ---------------------------------------------------------------------------
 
 async def init_db(db_path: str = DB_PATH) -> None:
-    # Parent dir is ensured at config import; keep mkdir for tests passing a temp path.
-    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+    # Parent dir and writability are validated in config._compute_db_path(); do not mkdir here
+    # (avoids PermissionError on /data when env points at Docker-only paths).
     async with aiosqlite.connect(db_path) as db:
         await db.execute(_SCHEMA_USERS)
         await db.execute(_SCHEMA_ELO_SNAPSHOTS)

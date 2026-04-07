@@ -12,35 +12,60 @@ _LOG = logging.getLogger(__name__)
 _APP_ROOT = Path(__file__).resolve().parent
 
 
+def _try_db_file(path: Path, *, warn_on_fail: bool) -> bool:
+    """
+    True if we can create the DB file's parent dir and write a probe file there.
+    mkdir(..., exist_ok=True) alone is not enough: /data may exist but be root-only on App Platform.
+    """
+    parent = path.parent
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        if warn_on_fail:
+            _LOG.warning(
+                "DB_PATH %s: cannot create parent (%s). Using app directory instead.",
+                path,
+                exc,
+            )
+        return False
+    probe = parent / f".faceit_bot_write_probe.{os.getpid()}"
+    try:
+        probe.write_text("", encoding="utf-8")
+        probe.unlink(missing_ok=True)
+    except OSError as exc:
+        if warn_on_fail:
+            _LOG.warning(
+                "DB_PATH %s: directory not writable (%s). Using app directory instead. "
+                "On App Platform, remove DB_PATH or use bot_data.db — not /data/... without a volume.",
+                path,
+                exc,
+            )
+        return False
+    return True
+
+
 def _compute_db_path() -> str:
     """
     Resolve SQLite path. Relative DB_PATH is under the app directory (not process CWD).
-    If the chosen directory cannot be created (e.g. DB_PATH=/data/... on App Platform
-    without a volume), fall back to bot_data.db next to this package.
+    Tries env DB_PATH first, then bot_data.db next to this package.
     """
     default = _APP_ROOT / "bot_data.db"
     raw = (os.getenv("DB_PATH") or "").strip()
-    if not raw:
-        path = default
-    else:
+    candidates: list[Path] = []
+    if raw:
         p = Path(raw)
-        path = (_APP_ROOT / p) if not p.is_absolute() else p
-        path = path.resolve()
+        p = (_APP_ROOT / p) if not p.is_absolute() else p
+        candidates.append(p.resolve())
+    candidates.append(default)
 
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-    except OSError as exc:
-        _LOG.warning(
-            "Could not create database directory for %s (%s). Using %s instead. "
-            "On DigitalOcean App Platform, omit DB_PATH or set it to a relative name "
-            "like bot_data.db (not /data/... unless you mount that path).",
-            path,
-            exc,
-            default,
-        )
-        path = default
-        path.parent.mkdir(parents=True, exist_ok=True)
-    return str(path)
+    for i, path in enumerate(candidates):
+        warn = bool(raw) and i == 0 and len(candidates) > 1
+        if _try_db_file(path, warn_on_fail=warn):
+            return str(path)
+
+    raise OSError(
+        f"Cannot use any database path (tried {candidates}). Check app directory permissions."
+    )
 
 
 BOT_VERSION: str = "1.4.0"
