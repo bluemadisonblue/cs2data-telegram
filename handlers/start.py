@@ -108,6 +108,8 @@ ABOUT_HTML = "\n".join(
         f"{link('https://docs.faceit.com/', 'FACEIT Data API')} "
         "(CS2). This bot is not affiliated with FACEIT.",
         "",
+        f"Source code: {link('https://github.com/bluemadisonblue/CS2DATA', 'GitHub')}.",
+        "",
         f"{bold('Contact')} {code('@tyuiqak')} · {code('tyuiqak@gmail.com')}",
         "",
         sep(20),
@@ -188,6 +190,18 @@ async def cmd_version(message: Message) -> None:
 async def cb_menu_help(callback: CallbackQuery) -> None:
     if callback.message:
         await callback.message.edit_text(HELP_HTML, parse_mode=ParseMode.HTML, reply_markup=main_menu_kb())
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu:about")
+async def cb_menu_about(callback: CallbackQuery) -> None:
+    if callback.message:
+        await callback.message.edit_text(
+            ABOUT_HTML,
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True,
+            reply_markup=main_menu_kb(),
+        )
     await callback.answer()
 
 

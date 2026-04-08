@@ -23,6 +23,7 @@ _BTN_RANK     = InlineKeyboardButton(text="🏆 Rank",    callback_data="nav:ran
 _BTN_MAPS     = InlineKeyboardButton(text="🗺 Maps",    callback_data="nav:maps")
 _BTN_COMPARE  = InlineKeyboardButton(text="⚔️ Compare", callback_data="nav:compare")
 _BTN_REGISTER = InlineKeyboardButton(text="🔗 Register",callback_data="menu:register")
+_BTN_ABOUT    = InlineKeyboardButton(text="ℹ️ About",   callback_data="menu:about")
 _BTN_HELP     = InlineKeyboardButton(text="❓ Help",    callback_data="menu:help")
 _BTN_HOME     = InlineKeyboardButton(text="🏠 Home",    callback_data="nav:home")
 # Opens the composer with @bot + inline query in this chat (DM-friendly).
@@ -37,12 +38,12 @@ _BTN_INLINE   = InlineKeyboardButton(
 # ---------------------------------------------------------------------------
 
 def main_menu_kb() -> InlineKeyboardMarkup:
-    """Primary navigation — used only for start / help screens."""
+    """Primary navigation — used for /start, /help, /about, and home."""
     b = InlineKeyboardBuilder()
     b.row(_BTN_STATS, _BTN_PROFILE)
     b.row(_BTN_MATCHES, _BTN_RANK)
-    b.row(_BTN_MAPS, _BTN_COMPARE)
-    b.row(_BTN_REGISTER, _BTN_HELP)
+    b.row(_BTN_COMPARE, _BTN_HELP)
+    b.row(_BTN_ABOUT)
     b.row(_BTN_INLINE)
     b.row(_BTN_HOME)
     return b.as_markup()
@@ -56,8 +57,8 @@ def register_success_kb() -> InlineKeyboardMarkup:
         _BTN_PROFILE,
     )
     b.row(_BTN_MATCHES, _BTN_RANK)
-    b.row(_BTN_MAPS, _BTN_COMPARE)
-    b.row(_BTN_REGISTER, _BTN_HELP)
+    b.row(_BTN_COMPARE, _BTN_HELP)
+    b.row(_BTN_ABOUT)
     b.row(_BTN_INLINE)
     b.row(_BTN_HOME)
     return b.as_markup()
