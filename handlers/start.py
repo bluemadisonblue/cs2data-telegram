@@ -6,6 +6,7 @@ import os
 
 from aiogram import F, Router
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandObject
 from aiogram.types import CallbackQuery, Message
 
@@ -14,6 +15,41 @@ from keyboards.inline import main_menu_kb
 from ui_text import bold, bullet_line, code, esc, italic, link, section, sep, tip_item
 
 router = Router(name="start")
+
+
+async def _edit_main_menu_message(
+    message: Message,
+    text: str,
+    *,
+    disable_web_page_preview: bool = False,
+) -> None:
+    """Set message to HTML + main menu, or send a new message if edit is impossible (e.g. profile photo)."""
+    bot = message.bot
+    chat_id = message.chat.id
+    markup = main_menu_kb()
+    extra: dict = {}
+    if disable_web_page_preview:
+        extra["disable_web_page_preview"] = True
+    try:
+        await message.edit_text(
+            text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=markup,
+            **extra,
+        )
+    except TelegramBadRequest:
+        try:
+            await message.delete()
+        except TelegramBadRequest:
+            pass
+        await bot.send_message(
+            chat_id,
+            text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=markup,
+            **extra,
+        )
+
 
 HELP_HTML = "\n".join(
     [
@@ -189,18 +225,17 @@ async def cmd_version(message: Message) -> None:
 @router.callback_query(F.data == "menu:help")
 async def cb_menu_help(callback: CallbackQuery) -> None:
     if callback.message:
-        await callback.message.edit_text(HELP_HTML, parse_mode=ParseMode.HTML, reply_markup=main_menu_kb())
+        await _edit_main_menu_message(callback.message, HELP_HTML)
     await callback.answer()
 
 
 @router.callback_query(F.data == "menu:about")
 async def cb_menu_about(callback: CallbackQuery) -> None:
     if callback.message:
-        await callback.message.edit_text(
+        await _edit_main_menu_message(
+            callback.message,
             ABOUT_HTML,
-            parse_mode=ParseMode.HTML,
             disable_web_page_preview=True,
-            reply_markup=main_menu_kb(),
         )
     await callback.answer()
 
@@ -208,10 +243,9 @@ async def cb_menu_about(callback: CallbackQuery) -> None:
 @router.callback_query(F.data == "menu:register")
 async def cb_menu_register(callback: CallbackQuery) -> None:
     if callback.message:
-        await callback.message.edit_text(
+        await _edit_main_menu_message(
+            callback.message,
             f"{bold('Register')}\nSend {code('/register your_faceit_nickname')} in this chat.",
-            parse_mode=ParseMode.HTML,
-            reply_markup=main_menu_kb(),
         )
     await callback.answer()
 
@@ -219,5 +253,5 @@ async def cb_menu_register(callback: CallbackQuery) -> None:
 @router.callback_query(F.data == "nav:home")
 async def cb_nav_home(callback: CallbackQuery) -> None:
     if callback.message:
-        await callback.message.edit_text(WELCOME_HTML, parse_mode=ParseMode.HTML, reply_markup=main_menu_kb())
+        await _edit_main_menu_message(callback.message, WELCOME_HTML)
     await callback.answer()
