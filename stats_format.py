@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from config import RECENT_FORM_LIMIT, level_tier_emoji
+from config import (
+    RECENT_FORM_LIMIT,
+    STATS_RECENT_WINDOW_MATCHES,
+    level_tier_emoji,
+)
 from faceit_api import (
     FaceitAPI,
     FaceitAPIError,
@@ -12,9 +16,75 @@ from faceit_api import (
     extract_cs2_game,
     lifetime_map_from_stats_response,
     parse_lifetime_stats,
+    parse_match_stats_row,
 )
 from formatting import flag_emoji, recent_form_badge
-from ui_text import bold, code, esc, italic, section
+from ui_text import bold, code, esc, italic, section, sep
+
+
+def aggregate_recent_match_window(
+    items: list[Any],
+    *,
+    limit: int,
+) -> dict[str, Any]:
+    """Roll WR, K/D, HS, K/R, per-match averages, MVP sum from newest *limit* games."""
+    rows: list[dict[str, Any]] = []
+    for it in items[:limit]:
+        if not isinstance(it, dict):
+            continue
+        stats = it.get("stats")
+        if not isinstance(stats, dict):
+            continue
+        rows.append(parse_match_stats_row(stats))
+
+    n = len(rows)
+    if n == 0:
+        return {
+            "n": 0,
+            "wr_pct": None,
+            "kd": None,
+            "hs_pct": None,
+            "kr": None,
+            "avg_k": None,
+            "avg_d": None,
+            "mvp_sum": None,
+        }
+
+    wins = sum(1 for r in rows if r.get("won") is True)
+    losses = sum(1 for r in rows if r.get("won") is False)
+    decided = wins + losses
+    wr_pct = (100.0 * wins / decided) if decided else None
+
+    kills = sum((r.get("kills") or 0.0) for r in rows)
+    deaths = sum((r.get("deaths") or 0.0) for r in rows)
+    kd = (kills / deaths) if deaths else None
+    avg_k = kills / n
+    avg_d = deaths / n
+
+    hs_vals = [r["hs_pct"] for r in rows if r.get("hs_pct") is not None]
+    hs_pct = sum(hs_vals) / len(hs_vals) if hs_vals else None
+
+    total_rounds = sum((r.get("rounds") or 0.0) for r in rows if r.get("rounds"))
+    kr: float | None
+    if total_rounds and total_rounds > 0:
+        kr = kills / total_rounds
+    else:
+        kr_vals = [r["kr"] for r in rows if r.get("kr") is not None]
+        kr = sum(kr_vals) / len(kr_vals) if kr_vals else None
+
+    mvp_vals = [r["mvps"] for r in rows if r.get("mvps") is not None]
+    mvp_sum = sum(mvp_vals) if mvp_vals else None
+
+    return {
+        "n": n,
+        "wr_pct": wr_pct,
+        "kd": kd,
+        "hs_pct": hs_pct,
+        "kr": kr,
+        "avg_k": avg_k,
+        "avg_d": avg_d,
+        "mvp_sum": mvp_sum,
+    }
 
 
 async def fetch_stats_bundle(
@@ -35,7 +105,9 @@ async def fetch_stats_bundle(
     else:
         pid = player_id  # type: ignore[assignment]
 
-    p, st, recent_raw = await faceit.get_dashboard_bundle(pid, RECENT_FORM_LIMIT)
+    p, st, recent_raw = await faceit.get_dashboard_bundle(
+        pid, STATS_RECENT_WINDOW_MATCHES
+    )
 
     g = extract_cs2_game(p) or {}
     elo = int(g.get("faceit_elo") or 0)
@@ -78,6 +150,37 @@ async def fetch_stats_bundle(
     avg_d = _fmt_opt(parsed.get("avg_deaths"), ".2f", "—")
 
     items = (recent_raw or {}).get("items") or []
+    win_stats = aggregate_recent_match_window(items, limit=STATS_RECENT_WINDOW_MATCHES)
+
+    if win_stats["n"] > 0:
+        recent_label = (
+            f"last {win_stats['n']} matches"
+            if win_stats["n"] < STATS_RECENT_WINDOW_MATCHES
+            else f"last {STATS_RECENT_WINDOW_MATCHES} matches"
+        )
+        recent_wr_s = (
+            _fmt_opt(win_stats["wr_pct"], ".1f") + "%"
+            if win_stats["wr_pct"] is not None
+            else "N/A"
+        )
+        recent_kd_s = _fmt_opt(win_stats["kd"], ".2f", "N/A")
+        recent_hs_s = (
+            _fmt_opt(win_stats["hs_pct"], ".1f") + "%"
+            if win_stats["hs_pct"] is not None
+            else "N/A"
+        )
+        recent_kr_s = _fmt_opt(win_stats["kr"], ".2f", "N/A")
+        recent_avg_k = _fmt_opt(win_stats["avg_k"], ".2f", "—")
+        recent_avg_d = _fmt_opt(win_stats["avg_d"], ".2f", "—")
+        if win_stats["mvp_sum"] is not None:
+            recent_mvp_s = _fmt_opt(win_stats["mvp_sum"], ".0f", "—")
+        else:
+            recent_mvp_s = "—"
+    else:
+        recent_label = "lifetime · no recent matches"
+        recent_wr_s, recent_kd_s, recent_hs_s, recent_kr_s = wr_s, kd_s, hs_s, kr_s
+        recent_avg_k, recent_avg_d, recent_mvp_s = avg_k, avg_d, mvp_t
+
     form, form_n = recent_form_badge(items, limit=min(10, RECENT_FORM_LIMIT))
     streak_info = current_win_streak(items)
 
@@ -105,6 +208,14 @@ async def fetch_stats_bundle(
         "kr_s": kr_s,
         "avg_k": avg_k,
         "avg_d": avg_d,
+        "recent_label": recent_label,
+        "recent_wr_s": recent_wr_s,
+        "recent_kd_s": recent_kd_s,
+        "recent_hs_s": recent_hs_s,
+        "recent_kr_s": recent_kr_s,
+        "recent_avg_k": recent_avg_k,
+        "recent_avg_d": recent_avg_d,
+        "recent_mvp_s": recent_mvp_s,
         "form": form,
         "recent_form_n": form_n,
         "streak": streak_info,
@@ -113,7 +224,7 @@ async def fetch_stats_bundle(
 
 
 def format_stats_dashboard_html(bundle: dict[str, Any]) -> str:
-    """HTML body for the /stats dashboard — compact, no decorative separators."""
+    """HTML body for the /stats dashboard — spaced sections, rolling window stats."""
     nick_disp = esc(bundle["nickname"])
     lines: list[str] = [
         section("📊", "CS2 dashboard"),
@@ -122,14 +233,25 @@ def format_stats_dashboard_html(bundle: dict[str, Any]) -> str:
         f"{bold('ELO')} {code(str(bundle['elo']))}   {bold('Level')} {code(str(bundle['level']))}   "
         f"{bold('Region')} {code(bundle['region'])}",
         "",
-        f"{bold('Combat')}  WR {code(bundle['wr_s'])}  ·  K/D {code(bundle['kd_s'])}  ·  "
-        f"HS {code(bundle['hs_s'])}  ·  K/R {code(bundle['kr_s'])}",
-        f"{bold('Per game')}  Avg K {code(bundle['avg_k'])}  ·  Avg D {code(bundle['avg_d'])}  ·  "
-        f"MVPs {code(bundle['mvp_t'])}",
+        sep(24),
         "",
-        f"{bold('Totals')}  {code(bundle['mp_s'])} matches  ·  W/L {code(bundle['wl_s'])}  ·  "
+        f"{bold('Stats')}  {italic(bundle['recent_label'])}",
+        f"WR {code(bundle['recent_wr_s'])}    "
+        f"K/D {code(bundle['recent_kd_s'])}    "
+        f"HS {code(bundle['recent_hs_s'])}    "
+        f"K/R {code(bundle['recent_kr_s'])}",
+        "",
+        f"{italic('Per match')}    "
+        f"Avg K {code(bundle['recent_avg_k'])}    "
+        f"Avg D {code(bundle['recent_avg_d'])}    "
+        f"MVPs {code(bundle['recent_mvp_s'])}",
+        "",
+        sep(24),
+        "",
+        f"{bold('Totals')}  {italic('(lifetime)')}",
+        f"{code(bundle['mp_s'])} matches    W/L {code(bundle['wl_s'])}    "
         f"best streak {code(bundle['streak_s'])}",
-        f"{bold('KDA')} {code(bundle['kills_t'])} / {code(bundle['deaths_t'])} / {code(bundle['ast_t'])}   "
+        f"{bold('KDA')} {code(bundle['kills_t'])} / {code(bundle['deaths_t'])} / {code(bundle['ast_t'])}    "
         f"{bold('Rounds')} {code(bundle['rnd_t'])}",
         "",
         section("🔥", "Form"),

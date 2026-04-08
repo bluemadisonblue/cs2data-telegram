@@ -276,6 +276,71 @@ class TestParseMatchStatsRow:
         row = parse_match_stats_row(stats)
         assert row["match_id"] == "abc-123"
 
+    def test_optional_hs_mvps_kr_rounds(self):
+        stats = {
+            "Kills": "10",
+            "Deaths": "5",
+            "Result": "1",
+            "Headshots %": "48.5",
+            "MVPs": "2",
+            "K/R": "0.87",
+            "Rounds": "22",
+        }
+        row = parse_match_stats_row(stats)
+        assert row["hs_pct"] == pytest.approx(48.5)
+        assert row["mvps"] == pytest.approx(2.0)
+        assert row["kr"] == pytest.approx(0.87)
+        assert row["rounds"] == pytest.approx(22.0)
+
+
+# ---------------------------------------------------------------------------
+# aggregate_recent_match_window (stats_format)
+# ---------------------------------------------------------------------------
+
+
+class TestAggregateRecentMatchWindow:
+    def test_two_matches_wr_kd_mvp(self):
+        from stats_format import aggregate_recent_match_window
+
+        items = [
+            {
+                "stats": {
+                    "Kills": "20",
+                    "Deaths": "10",
+                    "Result": "1",
+                    "Headshots %": "50",
+                    "MVPs": "1",
+                    "Rounds": "20",
+                }
+            },
+            {
+                "stats": {
+                    "Kills": "10",
+                    "Deaths": "20",
+                    "Result": "0",
+                    "Headshots %": "30",
+                    "MVPs": "0",
+                    "Rounds": "22",
+                }
+            },
+        ]
+        ag = aggregate_recent_match_window(items, limit=30)
+        assert ag["n"] == 2
+        assert ag["wr_pct"] == pytest.approx(50.0)
+        assert ag["kd"] == pytest.approx(30.0 / 30.0)
+        assert ag["avg_k"] == pytest.approx(15.0)
+        assert ag["avg_d"] == pytest.approx(15.0)
+        assert ag["hs_pct"] == pytest.approx(40.0)
+        assert ag["mvp_sum"] == pytest.approx(1.0)
+        assert ag["kr"] == pytest.approx(30.0 / 42.0)
+
+    def test_empty_items(self):
+        from stats_format import aggregate_recent_match_window
+
+        ag = aggregate_recent_match_window([], limit=30)
+        assert ag["n"] == 0
+        assert ag["kd"] is None
+
 
 # ---------------------------------------------------------------------------
 # aggregate_match_scoreboard

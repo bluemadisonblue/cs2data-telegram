@@ -703,6 +703,37 @@ def parse_match_stats_row(stats: dict[str, Any]) -> dict[str, Any]:
     map_name = _first_present(stats, "Map", "Map Name")
     finished = _first_present(stats, "Match Finished At", "Finished At")
     match_id = _first_present(stats, "Match Id", "Match ID", "MatchId", "match_id")
+    hs = _first_present(
+        stats,
+        "Average Headshots %",
+        "Headshots %",
+        "Average Headshots",
+    )
+    mvps = _first_present(
+        stats,
+        "MVPs",
+        "MVP",
+        "Total MVPs",
+        "Total MVP",
+        "MVP Stars",
+    )
+    kr = _first_present(
+        stats,
+        "Average K/R Ratio",
+        "K/R Ratio",
+        "Average K/R",
+        "K/R",
+        "Average Kills per Round",
+        "Kills per Round",
+        "Kills Per Round",
+    )
+    rounds = _first_present(
+        stats,
+        "Rounds",
+        "Rounds Played",
+        "Total Rounds",
+        "Total Rounds Played",
+    )
     return {
         "match_id": str(match_id) if match_id else None,
         "won": won,
@@ -711,6 +742,10 @@ def parse_match_stats_row(stats: dict[str, Any]) -> dict[str, Any]:
         "kd": _to_float(kd),
         "map": str(map_name) if map_name else "—",
         "finished_at": finished,
+        "hs_pct": _to_float(hs),
+        "mvps": _to_float(mvps),
+        "kr": _to_float(kr),
+        "rounds": _to_float(rounds),
     }
 
 

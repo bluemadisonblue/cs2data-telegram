@@ -80,6 +80,8 @@ DB_PATH: str = _compute_db_path()
 COOLDOWN_SEC: float = 10.0
 MATCHES_PAGE_SIZE: int = 5
 RECENT_FORM_LIMIT: int = 12
+# Match rows fetched for /stats dashboard (form strip + rolling stats block).
+STATS_RECENT_WINDOW_MATCHES: int = 30
 LEADERBOARD_MAX_USERS: int = 40
 PARTY_MAX_PLAYERS: int = 6
 INLINE_STATS_MIN_QUERY_LEN: int = 2
