@@ -33,6 +33,8 @@ python bot.py
 | `SENTRY_DSN` | No | If set, uncaught handler errors are reported to [Sentry](https://sentry.io/). See `DEPLOY.md`. |
 | `SENTRY_ENVIRONMENT` | No | Sentry environment label (default: `production`). |
 | `SENTRY_TRACES_SAMPLE_RATE` | No | `0`–`1` for performance tracing (default: `0`). |
+| `FACEIT_CIRCUIT_FAILURE_THRESHOLD` | No | After this many consecutive failed FACEIT request cycles, pause calls briefly (default `4`; `0` disables). |
+| `FACEIT_CIRCUIT_OPEN_SEC` | No | Circuit-open duration in seconds (default `60`). |
 
 Tunable constants (cooldowns, cache size, watch interval, etc.) live in `config.py`.
 
@@ -81,8 +83,10 @@ pytest
 | `bot.py` | Entry: polling, middlewares, background watch loop |
 | `config.py` | Env + constants |
 | `database.py` | SQLite schema and queries |
-| `faceit_api.py` | FACEIT Data API client (cache, retries) |
+| `faceit_api.py` | FACEIT Data API client (cache, retries, circuit breaker) |
+| `faceit_messages.py` | Shared user-facing HTML for FACEIT errors / empty states |
 | `fsm_storage.py` | FSM persistence in SQLite |
+| `scripts/backup_sqlite.py` | Offline-safe SQLite backup (cron-friendly) |
 | `handlers/` | Command and callback handlers |
 | `keyboards/` | Inline keyboards |
 | `middlewares/` | Per-update DB connection |

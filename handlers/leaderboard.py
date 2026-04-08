@@ -12,7 +12,14 @@ from aiogram.types import Message
 
 import database as dbmod
 from config import COOLDOWN_SEC, LEADERBOARD_MAX_USERS, level_tier_emoji
-from faceit_api import FaceitAPIError, FaceitNotFoundError, extract_cs2_game
+from faceit_api import (
+    FaceitAPIError,
+    FaceitNotFoundError,
+    FaceitRateLimitError,
+    FaceitUnavailableError,
+    extract_cs2_game,
+)
+from faceit_messages import html_faceit_transport_error
 from keyboards.inline import with_navigation
 from ui_text import bold, code, italic, section, sep
 
@@ -63,9 +70,14 @@ async def cmd_leaderboard(message: Message, db, faceit) -> None:
         except FaceitNotFoundError:
             rows.append((0, nick_db, 0, "❔"))
             continue
-        except FaceitAPIError:
-            rows.append((0, nick_db, 0, "❔"))
-            continue
+        except (FaceitUnavailableError, FaceitRateLimitError, FaceitAPIError) as exc:
+            await loading.delete()
+            await message.answer(
+                html_faceit_transport_error(exc),
+                parse_mode=ParseMode.HTML,
+                reply_markup=with_navigation(),
+            )
+            return
         g = extract_cs2_game(p) or {}
         elo = int(g.get("faceit_elo") or 0)
         level = int(g.get("skill_level") or 0)

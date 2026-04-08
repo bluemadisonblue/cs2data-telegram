@@ -18,6 +18,7 @@ from faceit_api import (
     parse_lifetime_stats,
     parse_match_stats_row,
 )
+from faceit_messages import html_stats_form_empty
 from formatting import flag_emoji, recent_form_badge
 from ui_text import bold, code, esc, italic, section, sep
 
@@ -259,7 +260,7 @@ def format_stats_dashboard_html(bundle: dict[str, Any]) -> str:
     form_raw = bundle["form"]
     n_show = int(bundle.get("recent_form_n") or 0)
     if form_raw == "—" or n_show == 0:
-        lines.append(italic("No recent matches in this API batch."))
+        lines.append(html_stats_form_empty())
     else:
         lines.append(f"<code>{form_raw}</code>")
 

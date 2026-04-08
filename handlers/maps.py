@@ -19,6 +19,7 @@ from faceit_api import (
     FaceitUnavailableError,
     parse_match_stats_row,
 )
+from faceit_messages import html_faceit_transport_error
 from keyboards.inline import ctx_maps_kb, with_navigation
 from ui_text import bold, code, esc, italic, not_linked_html, section
 
@@ -84,26 +85,10 @@ async def answer_maps_mix(
             reply_markup=with_navigation(),
         )
         return
-    except FaceitUnavailableError:
+    except (FaceitUnavailableError, FaceitRateLimitError, FaceitAPIError) as exc:
         await loading.delete()
         await message.answer(
-            bold("FACEIT is temporarily unavailable.") + "\nTry again in a moment.",
-            parse_mode=ParseMode.HTML,
-            reply_markup=with_navigation(),
-        )
-        return
-    except FaceitRateLimitError:
-        await loading.delete()
-        await message.answer(
-            bold("FACEIT rate limit.") + " Try again shortly.",
-            parse_mode=ParseMode.HTML,
-            reply_markup=with_navigation(),
-        )
-        return
-    except FaceitAPIError:
-        await loading.delete()
-        await message.answer(
-            bold("FACEIT error.") + " Try again later.",
+            html_faceit_transport_error(exc),
             parse_mode=ParseMode.HTML,
             reply_markup=with_navigation(),
         )

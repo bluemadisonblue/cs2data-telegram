@@ -125,18 +125,24 @@ async def upsert_user(
     faceit_nickname: str,
     faceit_player_id: str,
 ) -> None:
-    await db.execute(
-        """
-        INSERT INTO users (telegram_id, faceit_nickname, faceit_player_id,
-                           registered_at, updated_at)
-        VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        ON CONFLICT(telegram_id) DO UPDATE SET
-            faceit_nickname  = excluded.faceit_nickname,
-            faceit_player_id = excluded.faceit_player_id,
-            updated_at       = CURRENT_TIMESTAMP
-        """,
-        (telegram_id, faceit_nickname, faceit_player_id),
-    )
+    """Idempotent link: one row per Telegram user (ON CONFLICT UPDATE). Serialized with IMMEDIATE."""
+    await db.execute("BEGIN IMMEDIATE")
+    try:
+        await db.execute(
+            """
+            INSERT INTO users (telegram_id, faceit_nickname, faceit_player_id,
+                               registered_at, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT(telegram_id) DO UPDATE SET
+                faceit_nickname  = excluded.faceit_nickname,
+                faceit_player_id = excluded.faceit_player_id,
+                updated_at       = CURRENT_TIMESTAMP
+            """,
+            (telegram_id, faceit_nickname, faceit_player_id),
+        )
+    except Exception:
+        await db.rollback()
+        raise
     await db.commit()
 
 

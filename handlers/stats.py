@@ -25,6 +25,7 @@ from faceit_api import (
     parse_match_stats_row,
     resolve_match_faceit_url,
 )
+from faceit_messages import html_faceit_transport_error, html_matches_list_empty_faceit
 from formatting import flag_emoji, pick_history_meta
 from stats_format import fetch_stats_bundle, format_stats_dashboard_html
 from keyboards.inline import (
@@ -164,8 +165,11 @@ async def send_match_scoreboard(
         return
     except (FaceitUnavailableError, FaceitRateLimitError, FaceitAPIError) as exc:
         await loading.delete()
-        msg = bold("FACEIT rate limit.") if isinstance(exc, FaceitRateLimitError) else bold("FACEIT is temporarily unavailable.")
-        await message.answer(msg + " Try again shortly.", parse_mode=ParseMode.HTML, reply_markup=ctx_scoreboard_kb())
+        await message.answer(
+            html_faceit_transport_error(exc),
+            parse_mode=ParseMode.HTML,
+            reply_markup=ctx_scoreboard_kb(),
+        )
         return
 
     await loading.delete()
@@ -245,26 +249,10 @@ async def answer_stats_dashboard(
             reply_markup=with_navigation(),
         )
         return
-    except FaceitUnavailableError:
+    except (FaceitUnavailableError, FaceitRateLimitError, FaceitAPIError) as exc:
         await loading.delete()
         await message.answer(
-            bold("FACEIT is temporarily unavailable.") + "\nTry again in a moment.",
-            parse_mode=ParseMode.HTML,
-            reply_markup=with_navigation(),
-        )
-        return
-    except FaceitRateLimitError:
-        await loading.delete()
-        await message.answer(
-            bold("FACEIT rate limit.") + " Try again shortly.",
-            parse_mode=ParseMode.HTML,
-            reply_markup=with_navigation(),
-        )
-        return
-    except FaceitAPIError:
-        await loading.delete()
-        await message.answer(
-            bold("FACEIT error.") + " Try again later.",
+            html_faceit_transport_error(exc),
             parse_mode=ParseMode.HTML,
             reply_markup=with_navigation(),
         )
@@ -320,8 +308,11 @@ async def answer_matches_list(
         return
     except (FaceitUnavailableError, FaceitRateLimitError, FaceitAPIError) as exc:
         await loading.delete()
-        msg = bold("FACEIT rate limit.") if isinstance(exc, FaceitRateLimitError) else bold("FACEIT is temporarily unavailable.")
-        await message.answer(msg + " Try again shortly.", parse_mode=ParseMode.HTML, reply_markup=with_navigation())
+        await message.answer(
+            html_faceit_transport_error(exc),
+            parse_mode=ParseMode.HTML,
+            reply_markup=with_navigation(),
+        )
         return
 
     await loading.delete()
@@ -375,7 +366,14 @@ async def answer_matches_list(
 
     if not all_board_entries:
         await message.answer(
-            "\n".join([section("📜", "Recent matches"), f"{bold('Player')}: {nick_label}", "", italic("No recent matches returned by FACEIT.")]),
+            "\n".join(
+                [
+                    section("📜", "Recent matches"),
+                    f"{bold('Player')}: {nick_label}",
+                    "",
+                    html_matches_list_empty_faceit(),
+                ]
+            ),
             parse_mode=ParseMode.HTML,
             reply_markup=ctx_matches_kb(),
         )

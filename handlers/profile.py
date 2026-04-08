@@ -21,6 +21,7 @@ from faceit_api import (
     extract_cs2_game,
     steam_community_url,
 )
+from faceit_messages import html_faceit_transport_error
 from formatting import flag_emoji
 from keyboards.inline import ctx_profile_kb, player_links_kb, with_navigation
 from ui_text import bold, code, esc, link, not_linked_html, section, sep
@@ -74,23 +75,9 @@ async def answer_profile_card(
             reply_markup=with_navigation(),
         )
         return
-    except FaceitUnavailableError:
+    except (FaceitUnavailableError, FaceitRateLimitError, FaceitAPIError) as exc:
         await message.answer(
-            bold("FACEIT is temporarily unavailable.") + "\nTry again in a moment.",
-            parse_mode=ParseMode.HTML,
-            reply_markup=with_navigation(),
-        )
-        return
-    except FaceitRateLimitError:
-        await message.answer(
-            bold("FACEIT rate limit.") + " Try again shortly.",
-            parse_mode=ParseMode.HTML,
-            reply_markup=with_navigation(),
-        )
-        return
-    except FaceitAPIError:
-        await message.answer(
-            bold("FACEIT error.") + " Try again later.",
+            html_faceit_transport_error(exc),
             parse_mode=ParseMode.HTML,
             reply_markup=with_navigation(),
         )

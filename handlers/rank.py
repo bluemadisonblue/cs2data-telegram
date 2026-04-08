@@ -19,6 +19,7 @@ from faceit_api import (
     FaceitUnavailableError,
     extract_cs2_game,
 )
+from faceit_messages import html_faceit_transport_error
 from keyboards.inline import ctx_rank_kb, player_links_kb, with_navigation
 from ui_text import bold, code, esc, italic, not_linked_html, section, sep
 
@@ -74,14 +75,12 @@ async def answer_rank_card(
     except FaceitNotFoundError:
         await message.answer(bold("Player not found."), parse_mode=ParseMode.HTML, reply_markup=with_navigation())
         return
-    except FaceitUnavailableError:
-        await message.answer(bold("FACEIT is temporarily unavailable.") + "\nTry again in a moment.", parse_mode=ParseMode.HTML, reply_markup=with_navigation())
-        return
-    except FaceitRateLimitError:
-        await message.answer(bold("FACEIT rate limit.") + " Try again shortly.", parse_mode=ParseMode.HTML, reply_markup=with_navigation())
-        return
-    except FaceitAPIError:
-        await message.answer(bold("FACEIT error.") + " Try again later.", parse_mode=ParseMode.HTML, reply_markup=with_navigation())
+    except (FaceitUnavailableError, FaceitRateLimitError, FaceitAPIError) as exc:
+        await message.answer(
+            html_faceit_transport_error(exc),
+            parse_mode=ParseMode.HTML,
+            reply_markup=with_navigation(),
+        )
         return
 
     g = extract_cs2_game(p) or {}

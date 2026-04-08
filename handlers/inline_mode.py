@@ -24,6 +24,7 @@ from faceit_api import (
     FaceitRateLimitError,
     FaceitUnavailableError,
 )
+from faceit_messages import html_faceit_transport_error
 from handlers.compare import fetch_bundle_for_nickname
 from stats_format import fetch_stats_bundle, format_stats_dashboard_html
 
@@ -295,9 +296,9 @@ async def _inline_faceit_stats_impl(inline_query: InlineQuery, faceit) -> None:
                         InlineQueryResultArticle(
                             id="vs-ratelimit",
                             title="FACEIT rate limit",
-                            description="Try again in a few seconds",
+                            description="Wait a minute, then retry",
                             input_message_content=InputTextMessageContent(
-                                message_text="<b>FACEIT rate limit</b>\nTry again shortly.",
+                                message_text=html_faceit_transport_error(res),
                                 parse_mode="HTML",
                             ),
                         )
@@ -400,15 +401,15 @@ async def _inline_faceit_stats_impl(inline_query: InlineQuery, faceit) -> None:
             is_personal=True,
         )
         return
-    except FaceitRateLimitError:
+    except FaceitRateLimitError as exc:
         await inline_query.answer(
             [
                 InlineQueryResultArticle(
                     id="ratelimit",
                     title="FACEIT rate limit",
-                    description="Try again in a few seconds",
+                    description="Wait a minute, then retry",
                     input_message_content=InputTextMessageContent(
-                        message_text="<b>FACEIT rate limit</b>\nTry again shortly.",
+                        message_text=html_faceit_transport_error(exc),
                         parse_mode="HTML",
                     ),
                 )
@@ -423,10 +424,10 @@ async def _inline_faceit_stats_impl(inline_query: InlineQuery, faceit) -> None:
             [
                 InlineQueryResultArticle(
                     id="error",
-                    title="FACEIT temporarily unavailable",
-                    description=str(exc)[:80],
+                    title="FACEIT unavailable",
+                    description="Try again later",
                     input_message_content=InputTextMessageContent(
-                        message_text="<b>Could not reach FACEIT</b>\nTry again later.",
+                        message_text=html_faceit_transport_error(exc),
                         parse_mode="HTML",
                     ),
                 )

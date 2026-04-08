@@ -94,6 +94,12 @@ HTTP_TIMEOUT_SEC: int = 15
 FACEIT_RETRY_EXTRA_ATTEMPTS: int = 1
 FACEIT_RETRY_BASE_DELAY_SEC: float = 1.5
 FACEIT_RETRY_MAX_DELAY_SEC: float = 10.0
+# Circuit breaker: after this many consecutive failed request cycles (after retries), pause calls.
+# Set FACEIT_CIRCUIT_FAILURE_THRESHOLD=0 to disable.
+FACEIT_CIRCUIT_FAILURE_THRESHOLD: int = max(
+    0, int(os.getenv("FACEIT_CIRCUIT_FAILURE_THRESHOLD", "4"))
+)
+FACEIT_CIRCUIT_OPEN_SEC: float = float(os.getenv("FACEIT_CIRCUIT_OPEN_SEC", "60"))
 
 # Background match watch (seconds between polls)
 WATCH_POLL_INTERVAL: int = 300

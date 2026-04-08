@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
 
 from config import (
     FACEIT_BASE_URL,
+    FACEIT_CIRCUIT_FAILURE_THRESHOLD,
+    FACEIT_CIRCUIT_OPEN_SEC,
     FACEIT_RETRY_BASE_DELAY_SEC,
     FACEIT_RETRY_EXTRA_ATTEMPTS,
     FACEIT_RETRY_MAX_DELAY_SEC,
@@ -48,6 +51,10 @@ class FaceitNotFoundError(FaceitAPIError):
 
 class FaceitUnavailableError(FaceitAPIError):
     """Network / 5xx / 503."""
+
+
+class FaceitCircuitOpenError(FaceitUnavailableError):
+    """Local circuit breaker: skip outbound calls after repeated failures."""
 
 
 class FaceitRateLimitError(FaceitAPIError):
@@ -500,6 +507,8 @@ class FaceitAPI:
         self._session = session
         self._headers = {"Authorization": f"Bearer {api_key}"}
         self._cache = cache
+        self._circuit_open_until: float = 0.0
+        self._circuit_fail_streak: int = 0
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -528,9 +537,18 @@ class FaceitAPI:
         last_exc: Exception = FaceitAPIError("unknown")
         max_attempt = FACEIT_RETRY_EXTRA_ATTEMPTS
 
+        if FACEIT_CIRCUIT_FAILURE_THRESHOLD > 0:
+            now = time.monotonic()
+            if now < self._circuit_open_until:
+                raise FaceitCircuitOpenError(
+                    "FACEIT circuit open — repeated errors; cooling down."
+                )
+
         for attempt in range(max_attempt + 1):
             try:
-                return await self._do_request(method, url, **kwargs)
+                result = await self._do_request(method, url, **kwargs)
+                self._circuit_fail_streak = 0
+                return result
             except FaceitRateLimitError as exc:
                 last_exc = exc
                 if attempt < max_attempt:
@@ -562,6 +580,18 @@ class FaceitAPI:
                 raise FaceitUnavailableError(str(exc)) from exc
             except (FaceitNotFoundError, FaceitAPIError):
                 raise  # never retry client errors
+
+        if FACEIT_CIRCUIT_FAILURE_THRESHOLD > 0 and isinstance(
+            last_exc, (FaceitRateLimitError, FaceitUnavailableError)
+        ):
+            self._circuit_fail_streak += 1
+            if self._circuit_fail_streak >= FACEIT_CIRCUIT_FAILURE_THRESHOLD:
+                self._circuit_open_until = time.monotonic() + FACEIT_CIRCUIT_OPEN_SEC
+                self._circuit_fail_streak = 0
+                logger.warning(
+                    "FACEIT circuit breaker open for %.0fs after repeated failures",
+                    FACEIT_CIRCUIT_OPEN_SEC,
+                )
 
         raise last_exc
 
