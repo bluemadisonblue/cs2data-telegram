@@ -76,6 +76,53 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
+## MCP server (Claude Desktop / Claude Code)
+
+`faceit_mcp_server.py` exposes FACEIT CS2 data as an [MCP](https://modelcontextprotocol.io/) server so any compatible client (Claude Desktop, Claude Code) can query it conversationally.
+
+**Tools available**
+
+| Tool | Description |
+|------|-------------|
+| `get_player_stats` | ELO, level, region, lifetime K/D, HS%, win rate, streaks |
+| `get_match_history` | Last N matches — map, W/L, K/D, kills, HS%, K/R |
+| `compare_players` | Side-by-side stats for 2–6 FACEIT nicknames |
+| `get_leaderboard` | All bot-registered users ranked by live ELO |
+| `get_elo_trend` | Stored ELO snapshots for a registered nickname |
+
+**Setup (Claude Desktop)**
+
+Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "faceit-cs2": {
+      "command": "python",
+      "args": ["C:/full/path/to/CS2DATA/faceit_mcp_server.py"],
+      "env": { "FACEIT_API_KEY": "your_key_here" }
+    }
+  }
+}
+```
+
+Or omit `env` and keep `FACEIT_API_KEY` in the `.env` file next to the server.
+
+**Setup (Claude Code)**
+
+```bash
+claude mcp add faceit-cs2 -- python C:/full/path/to/CS2DATA/faceit_mcp_server.py
+```
+
+Then set `FACEIT_API_KEY` in the project's `.env`.
+
+**Example prompts once connected**
+
+- *"What are s1mple's lifetime stats?"*
+- *"Compare zywoo, niko, and device side by side"*
+- *"Show me the leaderboard for our group"*
+- *"How has my ELO changed over the last month?"* (requires bot registration)
+
 ## Project layout
 
 | Path | Role |
@@ -85,6 +132,7 @@ pytest
 | `database.py` | SQLite schema and queries |
 | `faceit_api.py` | FACEIT Data API client (cache, retries, circuit breaker) |
 | `faceit_messages.py` | Shared user-facing HTML for FACEIT errors / empty states |
+| `faceit_mcp_server.py` | MCP server for Claude Desktop / Claude Code |
 | `fsm_storage.py` | FSM persistence in SQLite |
 | `scripts/backup_sqlite.py` | Offline-safe SQLite backup (cron-friendly) |
 | `handlers/` | Command and callback handlers |
