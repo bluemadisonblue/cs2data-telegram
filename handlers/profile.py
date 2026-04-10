@@ -105,7 +105,7 @@ async def answer_profile_card(
     avatar = p.get("avatar")
     markup = ctx_profile_kb(url_kb)
 
-    if avatar and str(avatar).startswith("http") and len(detail) <= _CAPTION_MAX:
+    if avatar and str(avatar).startswith("https://") and len(detail) <= _CAPTION_MAX:
         try:
             await message.answer_photo(
                 photo=URLInputFile(str(avatar)),

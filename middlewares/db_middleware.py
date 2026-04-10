@@ -23,5 +23,6 @@ class DbMiddleware(BaseMiddleware):
     ) -> Any:
         async with aiosqlite.connect(self._db_path) as db:
             db.row_factory = aiosqlite.Row
+            await db.execute("PRAGMA foreign_keys = ON")
             data["db"] = db
             return await handler(event, data)

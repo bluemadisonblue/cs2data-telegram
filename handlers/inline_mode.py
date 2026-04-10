@@ -17,6 +17,9 @@ from aiogram.types import (
     InputTextMessageContent,
 )
 
+import time
+
+from cache import TTLCache
 from config import INLINE_STATS_MIN_QUERY_LEN, PARTY_MAX_PLAYERS
 from faceit_api import (
     FaceitAPIError,
@@ -31,6 +34,24 @@ from stats_format import fetch_stats_bundle, format_stats_dashboard_html
 router = Router(name="inline")
 
 logger = logging.getLogger(__name__)
+
+# Per-user inline cooldown: prevents API hammering from auto-typing in large chats.
+# Single-player lookup: 3 s; multi-player compare: 5 s.
+_INLINE_COOLDOWN_SINGLE = 3.0
+_INLINE_COOLDOWN_MULTI  = 5.0
+_inline_store: TTLCache = TTLCache(maxsize=10_000)
+
+
+def _inline_check_cooldown(user_id: int, multi: bool = False) -> bool:
+    """Return True (blocked) if the user is within the inline cooldown window."""
+    key = f"il:{user_id}"
+    limit = _INLINE_COOLDOWN_MULTI if multi else _INLINE_COOLDOWN_SINGLE
+    now = time.monotonic()
+    prev = _inline_store.get(key, limit)
+    if prev is not None and (now - prev) < limit:
+        return True
+    _inline_store.set(key, now)
+    return False
 
 
 async def _inline_typing(inline_query: InlineQuery) -> None:
@@ -248,10 +269,7 @@ async def inline_faceit_stats(inline_query: InlineQuery, faceit) -> None:
                         title="Inline error",
                         description="Tap to see details",
                         input_message_content=InputTextMessageContent(
-                            message_text=(
-                                "<b>Inline handler error</b>\n"
-                                f"<pre>{html.escape(str(exc)[:500])}</pre>"
-                            ),
+                            message_text="<b>Something went wrong.</b>\nPlease try again in a moment.",
                             parse_mode="HTML",
                         ),
                     )
@@ -279,6 +297,8 @@ async def _inline_faceit_stats_impl(inline_query: InlineQuery, faceit) -> None:
     parsed_vs = _try_parse_vs_query(q)
     if parsed_vs:
         nicks = parsed_vs[:PARTY_MAX_PLAYERS]
+        if _inline_check_cooldown(inline_query.from_user.id, multi=True):
+            return  # silently drop — Telegram will show the previous cached result
         await _inline_typing(inline_query)
         results = await asyncio.gather(
             *(fetch_bundle_for_nickname(faceit, n) for n in nicks),
@@ -381,6 +401,9 @@ async def _inline_faceit_stats_impl(inline_query: InlineQuery, faceit) -> None:
     if len(q) > 64:
         q = q[:64]
 
+    if _inline_check_cooldown(inline_query.from_user.id, multi=False):
+        return  # silently drop — Telegram will show the previous cached result
+
     await _inline_typing(inline_query)
     try:
         bundle = await fetch_stats_bundle(faceit, nickname=q)
@@ -442,7 +465,7 @@ async def _inline_faceit_stats_impl(inline_query: InlineQuery, faceit) -> None:
         dashboard_html = dashboard_html[:3990] + "\n<i>…truncated</i>"
 
     thumb = bundle.get("player", {}).get("avatar")
-    thumb_url = str(thumb) if thumb and str(thumb).startswith("http") else None
+    thumb_url = str(thumb) if thumb and str(thumb).startswith("https://") else None
 
     result_id = hashlib.sha256(q.lower().encode("utf-8")).hexdigest()[:64]
     title = _inline_title(f"{bundle['nickname'][:36]} · ELO {bundle['elo']}")

@@ -50,7 +50,9 @@ CREATE TABLE IF NOT EXISTS referrals (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     referrer_id   INTEGER NOT NULL,
     referred_id   INTEGER NOT NULL UNIQUE,
-    credited_at   TEXT    DEFAULT CURRENT_TIMESTAMP
+    credited_at   TEXT    DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (referrer_id) REFERENCES users(telegram_id) ON DELETE CASCADE,
+    FOREIGN KEY (referred_id) REFERENCES users(telegram_id) ON DELETE CASCADE
 );
 """
 
@@ -80,6 +82,7 @@ async def init_db(db_path: str = DB_PATH) -> None:
         # WAL mode gives better concurrent read performance with aiosqlite.
         await db.execute("PRAGMA journal_mode = WAL")
         await db.execute("PRAGMA synchronous = NORMAL")
+        await db.execute("PRAGMA foreign_keys = ON")
         await db.execute(_SCHEMA_USERS)
         await db.execute(_SCHEMA_ELO_SNAPSHOTS)
         await db.execute(_SCHEMA_FSM)

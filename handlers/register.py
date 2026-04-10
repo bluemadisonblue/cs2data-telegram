@@ -122,12 +122,14 @@ async def cmd_register(
 
         await dbmod.upsert_user(db, tid, resolved_nick, pid)
 
-        # Credit referrer if this is a brand-new user arriving via a referral link
+        # Credit referrer if this is a brand-new user arriving via a referral link.
+        # Validate the referrer is a real registered user before writing anything.
         referrer_id = referral_state.consume_pending(tid)
         referral_note = ""
         if referrer_id:
+            referrer_exists = await dbmod.get_user(db, referrer_id)
             already = await dbmod.has_been_referred(db, tid)
-            if not already:
+            if referrer_exists and not already:
                 credited = await dbmod.add_referral(db, referrer_id, tid)
                 if credited:
                     referral_note = (

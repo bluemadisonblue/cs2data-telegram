@@ -17,7 +17,7 @@ from faceit_messages import html_faceit_transport_error
 from handlers.cooldown import check_cooldown
 from keyboards.inline import card_share_kb, with_navigation
 from stats_format import fetch_stats_bundle
-from ui_text import bold, code, italic, not_linked_html
+from ui_text import bold, code, esc, italic, not_linked_html
 
 router = Router(name="card")
 
@@ -94,9 +94,10 @@ async def cmd_card(message: Message, command: CommandObject, db, faceit) -> None
     await loading.delete()
 
     nick = bundle.get("nickname") or "player"
-    caption = f"📊 <b>{nick}</b> · CS2 FACEIT stats"
+    caption = f"📊 <b>{esc(nick)}</b> · CS2 FACEIT stats"
 
-    photo = BufferedInputFile(png_bytes, filename=f"{nick}_cs2stats.png")
+    safe_filename = "".join(c for c in nick if c.isalnum() or c in "-_") or "player"
+    photo = BufferedInputFile(png_bytes, filename=f"{safe_filename}_cs2stats.png")
     await message.answer_photo(
         photo=photo,
         caption=caption,
